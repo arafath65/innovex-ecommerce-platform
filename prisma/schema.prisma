@@ -52,6 +52,12 @@ enum DeliveryMethod {
   PICKUP
 }
 
+enum StoreUserRole {
+  OWNER
+  ADMIN
+  STAFF
+}
+
 model Store {
   id           Int                @id @default(autoincrement())
   name         String             @db.VarChar(150)
@@ -68,6 +74,7 @@ model Store {
   customers     Customer[]
   orders        Order[]
   deliveryZones DeliveryZone[]
+  users         StoreUser[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -241,4 +248,22 @@ model OrderItem {
 
   @@index([orderId])
   @@index([productId])
+}
+
+model StoreUser {
+  id           Int           @id @default(autoincrement())
+  storeId      Int
+  name         String        @db.VarChar(150)
+  email        String        @db.VarChar(191)
+  passwordHash String        @db.VarChar(255)
+  role         StoreUserRole @default(ADMIN)
+  isActive     Boolean       @default(true)
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, email])
+  @@index([storeId, isActive])
 }
