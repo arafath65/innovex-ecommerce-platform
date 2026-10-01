@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type Subcategory = {
   id: number;
@@ -25,6 +26,7 @@ export default function CategoriesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const router = useRouter();
 
   const loadCategories = useCallback(async () => {
     setLoading(true);
@@ -51,8 +53,59 @@ export default function CategoriesPage() {
   }, []);
 
   useEffect(() => {
-    void loadCategories();
-  }, [loadCategories]);
+  let cancelled = false;
+
+  async function fetchCategories() {
+    try {
+      const response = await fetch(
+        "/api/admin/categories",
+        {
+          cache: "no-store",
+        },
+      );
+
+      if (response.status === 401) {
+        router.push("/admin/login");
+        return;
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Failed to load categories.",
+        );
+      }
+
+      if (!cancelled) {
+        setCategories(
+          Array.isArray(data.categories)
+            ? data.categories
+            : [],
+        );
+      }
+    } catch (error) {
+      if (!cancelled) {
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Failed to load categories.",
+        );
+      }
+    } finally {
+      if (!cancelled) {
+        setLoading(false);
+      }
+    }
+  }
+
+  void fetchCategories();
+
+  return () => {
+    cancelled = true;
+  };
+}, [router]);
 
   async function handleSubmit(
     event: React.FormEvent<HTMLFormElement>

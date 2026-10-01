@@ -1,21 +1,86 @@
 
 "use client";
 
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, useRef, useState } from "react";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
+
+import { STORE_CONFIG } from "@/config/store";
+import { StoreLogo } from "@/components/brand/StoreLogo";
+
+type LoginResponse = {
+  success?: boolean;
+  message?: string;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+    storeSlug: string;
+  };
+};
 
 export default function AdminLoginPage() {
-  const router = useRouter();
+  const pageRef = useRef<HTMLElement | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  useGSAP(
+    () => {
+      const timeline = gsap.timeline({
+        defaults: {
+          ease: "power3.out",
+        },
+      });
+
+      timeline
+        .from(".login-glow", {
+          opacity: 0,
+          scale: 0.7,
+          duration: 0.9,
+        })
+        .from(
+          cardRef.current,
+          {
+            opacity: 0,
+            y: 24,
+            scale: 0.985,
+            duration: 0.65,
+          },
+          "-=0.45"
+        )
+        .from(
+          ".login-item",
+          {
+            opacity: 0,
+            y: 10,
+            duration: 0.35,
+            stagger: 0.055,
+          },
+          "-=0.25"
+        );
+    },
+    { scope: pageRef }
+  );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    setLoading(true);
+    if (submitting) return;
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail || !password) {
+      setError("Please enter your email and password.");
+      return;
+    }
+
+    setSubmitting(true);
     setError("");
 
     try {
@@ -25,107 +90,223 @@ export default function AdminLoginPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          storeSlug: "oscar-trading",
-          email,
+          storeSlug: STORE_CONFIG.slug,
+          email: normalizedEmail,
           password,
         }),
       });
 
-      const result = await response.json();
+      const data: LoginResponse = await response.json();
 
-      if (!response.ok || !result.success) {
-        setError(result.message || "Login failed. Please try again.");
-        return;
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Invalid email or password."
+        );
       }
 
-      router.push("/admin/dashboard");
-      router.refresh();
-    } catch {
-      setError("Unable to connect to the server. Please try again.");
-    } finally {
-      setLoading(false);
+      if (!data.success) {
+        throw new Error(
+          data.message || "Unable to sign in."
+        );
+      }
+
+      gsap.to(cardRef.current, {
+        opacity: 0,
+        y: -10,
+        scale: 0.99,
+        duration: 0.28,
+        ease: "power2.in",
+        onComplete: () => {
+          window.location.assign("/admin/dashboard");
+        },
+      });
+    } catch (submissionError) {
+      setError(
+        submissionError instanceof Error
+          ? submissionError.message
+          : "Unable to sign in."
+      );
+
+      setSubmitting(false);
+
+      gsap.fromTo(
+        cardRef.current,
+        { x: 0 },
+        {
+          x: 7,
+          duration: 0.07,
+          repeat: 5,
+          yoyo: true,
+          clearProps: "x",
+          ease: "power1.inOut",
+        }
+      );
     }
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-100 px-4 py-10">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl sm:p-10">
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-600 text-2xl font-bold text-white">
-            I
-          </div>
+    <main
+      ref={pageRef}
+      className="relative flex min-h-screen min-h-[100svh] items-center justify-center overflow-hidden bg-[#f5f5f5] px-4 py-4 text-[#111111]"
+    >
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="login-glow absolute left-1/2 top-1/2 h-[25rem] w-[25rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-red-600/7 blur-[95px]" />
 
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-            Innovex Admin
-          </h1>
+        <div className="absolute left-1/2 top-1/2 h-[19rem] w-[19rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-black/[0.035]" />
+      </div>
 
-          <p className="mt-2 text-sm text-gray-500">
-            Oscar Trading · Store Management
-          </p>
-        </div>
+      <div
+        ref={cardRef}
+        className="relative z-10 w-full max-w-[420px] overflow-hidden rounded-[24px] border border-black/8 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.10)]"
+      >
+        <div
+          className="h-1.5"
+          style={{
+            backgroundColor: STORE_CONFIG.primaryColor,
+          }}
+        />
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label
-              htmlFor="email"
-              className="mb-2 block text-sm font-medium text-gray-700"
-            >
-              Email address
-            </label>
-
-            <input
-              id="email"
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="Enter your email"
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
+        <div className="p-7 sm:p-8">
+          {/* LOGO */}
+          <div className="login-item flex justify-center">
+            <StoreLogo
+              size="lg"
+              showName={false}
             />
           </div>
 
-          <div>
-            <label
-              htmlFor="password"
-              className="mb-2 block text-sm font-medium text-gray-700"
-            >
-              Password
-            </label>
-
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Enter your password"
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
-            />
-          </div>
-
-          {error && (
-            <div
-              role="alert"
-              className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-            >
-              {error}
+          {/* BRAND */}
+          <div className="login-item mt-3 text-center">
+            <div className="text-[22px] font-extrabold uppercase tracking-[-0.035em] text-[#111111]">
+              {STORE_CONFIG.name}
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-red-600 px-4 py-3 font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
+            <p className="mt-1.5 text-[11px] font-medium uppercase tracking-[0.19em] text-black/38">
+              Store Administration
+            </p>
+          </div>
 
-        <p className="mt-8 text-center text-xs text-gray-400">
-          Powered by Innovex Web Solutions
-        </p>
+          <div className="login-item my-6 h-px bg-black/7" />
+
+          {/* LOGIN FORM */}
+          <form onSubmit={handleSubmit}>
+            {/* EMAIL */}
+            <div className="login-item">
+              <label
+                htmlFor="email"
+                className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.13em] text-black/48"
+              >
+                Email
+              </label>
+
+              <input
+                id="email"
+                name="email"
+                type="email"
+                value={email}
+                onChange={(event) =>
+                  setEmail(event.target.value)
+                }
+                autoComplete="email"
+                placeholder="Enter email address"
+                required
+                disabled={submitting}
+                className="h-12 w-full rounded-[13px] border border-black/10 bg-[#fafafa] px-4 text-sm text-[#151515] outline-none transition placeholder:text-black/25 focus:border-[#d71920]/45 focus:bg-white focus:ring-4 focus:ring-[#d71920]/8 disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </div>
+
+            {/* PASSWORD */}
+            <div className="login-item mt-4">
+              <label
+                htmlFor="password"
+                className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.13em] text-black/48"
+              >
+                Password
+              </label>
+
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={
+                    showPassword
+                      ? "text"
+                      : "password"
+                  }
+                  value={password}
+                  onChange={(event) =>
+                    setPassword(event.target.value)
+                  }
+                  autoComplete="current-password"
+                  placeholder="Enter password"
+                  required
+                  disabled={submitting}
+                  className="h-12 w-full rounded-[13px] border border-black/10 bg-[#fafafa] px-4 pr-20 text-sm text-[#151515] outline-none transition placeholder:text-black/25 focus:border-[#d71920]/45 focus:bg-white focus:ring-4 focus:ring-[#d71920]/8 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowPassword(
+                      (value) => !value
+                    )
+                  }
+                  disabled={submitting}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-[9px] px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-black/40 transition hover:bg-black/5 hover:text-black disabled:opacity-40"
+                  aria-label={
+                    showPassword
+                      ? "Hide password"
+                      : "Show password"
+                  }
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </div>
+            </div>
+
+            {/* ERROR */}
+            {error ? (
+              <div
+                role="alert"
+                className="login-item mt-4 rounded-[12px] border border-red-900/10 bg-red-50 px-3.5 py-2.5 text-xs leading-5 text-red-800"
+              >
+                {error}
+              </div>
+            ) : null}
+
+            {/* SUBMIT */}
+            <div className="login-item mt-5">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="group relative flex h-12 w-full items-center justify-center overflow-hidden rounded-[13px] text-sm font-semibold text-white shadow-[0_12px_24px_rgba(215,25,32,0.18)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(215,25,32,0.24)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-65"
+                style={{
+                  backgroundColor:
+                    STORE_CONFIG.primaryColor,
+                }}
+              >
+                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition duration-700 group-hover:translate-x-full" />
+
+                <span className="relative">
+                  {submitting
+                    ? "Signing in..."
+                    : "Sign in"}
+                </span>
+
+                <span className="relative ml-2 text-base transition-transform duration-300 group-hover:translate-x-1">
+                  →
+                </span>
+              </button>
+            </div>
+          </form>
+
+          {/* FOOTER */}
+          <div className="login-item mt-5 border-t border-black/7 pt-4 text-center">
+            <p className="text-[9px] font-medium uppercase tracking-[0.15em] text-black/28">
+              Authorized store administrators only
+            </p>
+          </div>
+        </div>
       </div>
     </main>
   );

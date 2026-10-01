@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import Link from "next/link";
 
@@ -109,22 +109,25 @@ export default function ProductsPage() {
   const [selectedSubcategory, setSelectedSubcategory] = useState("");
 const [selectedImages, setSelectedImages] = useState<File[]>([]);
 
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const imagePreviews = useMemo(
+    () =>
+      selectedImages.map((file) =>
+        URL.createObjectURL(file)
+      ),
+    [selectedImages]
+  );
+
   const [uploadingProductId, setUploadingProductId] =
     useState<number | null>(null);
 
-  // Create and clean up image preview URLs.
+  // Clean up image preview URLs.
   useEffect(() => {
-    const urls = selectedImages.map((file) =>
-      URL.createObjectURL(file)
-    );
-
-    setImagePreviews(urls);
-
     return () => {
-      urls.forEach((url) => URL.revokeObjectURL(url));
+      imagePreviews.forEach((url) =>
+        URL.revokeObjectURL(url)
+      );
     };
-  }, [selectedImages]);
+  }, [imagePreviews]);
 
   const loadProducts = useCallback(async () => {
     setLoading(true);
@@ -155,7 +158,11 @@ const [selectedImages, setSelectedImages] = useState<File[]>([]);
   }, []);
 
   useEffect(() => {
-    void loadProducts();
+    async function loadInitialProducts() {
+      await loadProducts();
+    }
+
+    void loadInitialProducts();
   }, [loadProducts]);
 
   const loadCategories = useCallback(async () => {
@@ -179,7 +186,11 @@ const [selectedImages, setSelectedImages] = useState<File[]>([]);
   }, []);
   
   useEffect(() => {
-    void loadCategories();
+    async function loadInitialCategories() {
+      await loadCategories();
+    }
+
+    void loadInitialCategories();
   }, [loadCategories]);
 
   function updateField<K extends keyof ProductForm>(

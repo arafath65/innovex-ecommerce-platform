@@ -1,3 +1,4 @@
+import Link from "next/link";
 
 const categories = [
   { name: "Rice Cookers", icon: "🍚" },
@@ -80,7 +81,7 @@ export default function HomePage() {
           <div className="flex gap-5">
             <a href="#about">About Us</a>
             <a href="#contact">Contact Us</a>
-            <a href="/track-order">Track Order</a>
+            <Link href="/track-order">Track Order</Link>
             <a href="#help">Help</a>
           </div>
         </div>
@@ -89,7 +90,7 @@ export default function HomePage() {
       {/* Main header */}
       <header className="border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-5 px-5 py-4">
-          <a href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
             <span className="text-5xl font-black leading-none text-[#df0018]">
               S
             </span>
@@ -101,7 +102,7 @@ export default function HomePage() {
                 TRADING
               </span>
             </span>
-          </a>
+          </Link>
 
           {/* Search */}
           <form
@@ -185,12 +186,12 @@ export default function HomePage() {
           </a>
 
           <div className="flex flex-1 items-center justify-around gap-4 overflow-x-auto px-5 text-xs font-semibold uppercase sm:text-sm">
-            <a href="/" className="border-b-2 border-red-600 py-5">
+            <Link href="/" className="border-b-2 border-red-600 py-5">
               Home
-            </a>
-            <a href="/shop" className="py-5 hover:text-red-400">
+            </Link>
+            <Link href="/shop" className="py-5 hover:text-red-400">
               Shop
-            </a>
+            </Link>
             <a href="#categories" className="py-5 hover:text-red-400">
               Categories
             </a>
@@ -265,9 +266,9 @@ export default function HomePage() {
             Shop by <span className="text-[#df0018]">Category</span>
           </h2>
 
-          <a href="/categories" className="text-xs hover:text-red-600 sm:text-sm">
+          <Link href="/categories" className="text-xs hover:text-red-600 sm:text-sm">
             View All Categories →
-          </a>
+          </Link>
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-4 lg:grid-cols-8">
@@ -297,9 +298,9 @@ export default function HomePage() {
               Featured <span className="text-[#df0018]">Products</span>
             </h2>
 
-            <a href="/shop" className="text-xs hover:text-red-600 sm:text-sm">
+            <Link href="/shop" className="text-xs hover:text-red-600 sm:text-sm">
               View All Products →
-            </a>
+            </Link>
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-6">
@@ -308,7 +309,7 @@ export default function HomePage() {
                 key={product.name}
                 className="group overflow-hidden rounded-lg border border-gray-200 bg-white transition hover:-translate-y-1 hover:shadow-lg"
               >
-                <a href="/shop" className="block">
+                <Link href="/shop" className="block">
                   <div className="aspect-square overflow-hidden bg-gray-50">
                     <img
                       src={product.image}
@@ -336,7 +337,7 @@ export default function HomePage() {
                       </span>
                     </div>
                   </div>
-                </a>
+                </Link>
 
                 <div className="p-3 pt-2">
                   <button
@@ -446,7 +447,7 @@ export default function HomePage() {
       >
         <div className="mx-auto grid max-w-[1400px] gap-10 px-5 py-10 sm:grid-cols-2 lg:grid-cols-5">
           <div>
-            <a href="/" className="inline-flex items-center gap-2">
+            <Link href="/" className="inline-flex items-center gap-2">
               <span className="text-4xl font-black text-[#df0018]">
                 S
               </span>
@@ -456,7 +457,7 @@ export default function HomePage() {
                   TRADING
                 </span>
               </span>
-            </a>
+            </Link>
 
             <p className="mt-4 max-w-xs text-sm leading-6 text-gray-400">
               Your one-stop shop for quality kitchenware and home essentials.
@@ -473,10 +474,10 @@ export default function HomePage() {
           <div>
             <h3 className="text-sm font-bold uppercase">Quick Links</h3>
             <ul className="mt-4 space-y-2 text-sm text-gray-400">
-              <li><a href="/" className="hover:text-white">Home</a></li>
-              <li><a href="/shop" className="hover:text-white">Shop</a></li>
-              <li><a href="/categories" className="hover:text-white">Categories</a></li>
-              <li><a href="/offers" className="hover:text-white">Offers</a></li>
+              <li><Link href="/" className="hover:text-white">Home</Link></li>
+              <li><Link href="/shop" className="hover:text-white">Shop</Link></li>
+              <li><Link href="/categories" className="hover:text-white">Categories</Link></li>
+              <li><Link href="/offers" className="hover:text-white">Offers</Link></li>
               <li><a href="#about" className="hover:text-white">About Us</a></li>
             </ul>
           </div>
@@ -484,12 +485,12 @@ export default function HomePage() {
           <div id="help">
             <h3 className="text-sm font-bold uppercase">Customer Service</h3>
             <ul className="mt-4 space-y-2 text-sm text-gray-400">
-              <li><a href="/account" className="hover:text-white">My Account</a></li>
-              <li><a href="/track-order" className="hover:text-white">Track Order</a></li>
-              <li><a href="/wishlist" className="hover:text-white">Wishlist</a></li>
-              <li><a href="/returns" className="hover:text-white">Returns & Refunds</a></li>
-              <li><a href="/shipping" className="hover:text-white">Shipping Policy</a></li>
-              <li><a href="/faq" className="hover:text-white">FAQ</a></li>
+              <li><Link href="/account" className="hover:text-white">My Account</Link></li>
+              <li><Link href="/track-order" className="hover:text-white">Track Order</Link></li>
+              <li><Link href="/wishlist" className="hover:text-white">Wishlist</Link></li>
+              <li><Link href="/returns" className="hover:text-white">Returns & Refunds</Link></li>
+              <li><Link href="/shipping" className="hover:text-white">Shipping Policy</Link></li>
+              <li><Link href="/faq" className="hover:text-white">FAQ</Link></li>
             </ul>
           </div>
 
