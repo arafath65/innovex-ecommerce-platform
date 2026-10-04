@@ -255,7 +255,7 @@ export async function POST(
      * ---------------------------------------------------------------
      */
     const existingImageCount =
-      await prisma.productImage.count({
+      await prisma.product_image.count({
         where: {
           productId,
         },
@@ -529,7 +529,7 @@ export async function POST(
          * -----------------------------------------------------------
          */
         const created =
-          await prisma.productImage.create(
+          await prisma.product_image.create(
             {
               data: {
                 productId,

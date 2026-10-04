@@ -1,0 +1,1236 @@
+﻿
+========== .\src\lib\auth.ts ==========
+
+import { createHash, randomBytes } from "node:crypto";
+import { cookies } from "next/headers";
+
+import { prisma } from "@/lib/prisma";
+
+const STORE_SESSION_COOKIE = "session_user";
+const SUPER_ADMIN_SESSION_COOKIE = "super_admin_session";
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+
+export type StoreAdminSession = {
+  userId: number;
+  storeId: number;
+  storeSlug: string;
+  storeName: string;
+  name: string;
+  username: string;
+  email: string;
+  role: "OWNER" | "ADMIN" | "STAFF";
+  actorType: "STORE_USER" | "SUPER_ADMIN";
+  superAdminId: number | null;
+  isImpersonating: boolean;
+};
+
+export type SuperAdminSession = {
+  id: number;
+  name: string;
+  username: string;
+  email: string;
+};
+
+function hashToken(token: string) {
+  return createHash("sha256")
+    .update(token)
+    .digest("hex");
+}
+
+function cookieOptions(maxAge: number) {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge,
+  };
+}
+
+export async function createStoreAdminSession(userId: number) {
+  const token = randomBytes(32).toString("hex");
+  const tokenHash = hashToken(token);
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
+
+  await prisma.app_session.create({
+    data: {
+      tokenHash,
+      storeUserId: userId,
+      expiresAt,
+    },
+  });
+
+  const cookieStore = await cookies();
+  cookieStore.set(
+    STORE_SESSION_COOKIE,
+    token,
+    cookieOptions(Math.floor(SESSION_TTL_MS / 1000)),
+  );
+}
+
+export async function createSuperAdminSession(superAdminId: number) {
+  const token = randomBytes(32).toString("hex");
+  const tokenHash = hashToken(token);
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
+
+  await prisma.app_session.create({
+    data: {
+      tokenHash,
+      superAdminId,
+      expiresAt,
+    },
+  });
+
+  const cookieStore = await cookies();
+  cookieStore.set(
+    SUPER_ADMIN_SESSION_COOKIE,
+    token,
+    cookieOptions(Math.floor(SESSION_TTL_MS / 1000)),
+  );
+}
+
+export async function getSession(): Promise<StoreAdminSession | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(STORE_SESSION_COOKIE)?.value;
+
+  if (!token) {
+    return null;
+  }
+
+  const session = await prisma.app_session.findUnique({
+    where: {
+      tokenHash: hashToken(token),
+    },
+    include: {
+      storeUser: {
+        include: {
+          store: {
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+              isActive: true,
+            },
+          },
+        },
+      },
+      superAdmin: {
+        select: { id: true },
+      },
+    },
+  });
+
+  if (
+    !session ||
+    !session.storeUser ||
+    session.expiresAt <= new Date() ||
+    !session.storeUser.isActive ||
+    !session.storeUser.store.isActive
+  ) {
+    return null;
+  }
+
+  return {
+    userId: session.storeUser.id,
+    storeId: session.storeUser.store.id,
+    storeSlug: session.storeUser.store.slug,
+    storeName: session.storeUser.store.name,
+    name: session.storeUser.name,
+    username: session.storeUser.username,
+    email: session.storeUser.email,
+    role: session.storeUser.role,
+    actorType: session.superAdminId ? "SUPER_ADMIN" : "STORE_USER",
+    superAdminId: session.superAdminId ?? null,
+    isImpersonating: session.superAdminId !== null,
+  };
+}
+
+export async function createSuperAdminStoreOverride(superAdminId: number, storeId: number) {
+  const ownerOrAdmin = await prisma.store_user.findFirst({
+    where: {
+      storeId,
+      isActive: true,
+      role: { in: ["OWNER", "ADMIN"] },
+      store: { isActive: true },
+    },
+    orderBy: [{ role: "asc" }, { id: "asc" }],
+    select: { id: true },
+  });
+
+  if (!ownerOrAdmin) {
+    throw new Error("No active store administrator exists for this store.");
+  }
+
+  const token = randomBytes(32).toString("hex");
+  const tokenHash = hashToken(token);
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+  await prisma.app_session.create({
+    data: {
+      tokenHash,
+      storeUserId: ownerOrAdmin.id,
+      superAdminId,
+      expiresAt,
+    },
+  });
+
+  const cookieStore = await cookies();
+  cookieStore.set(
+    STORE_SESSION_COOKIE,
+    token,
+    cookieOptions(60 * 60),
+  );
+}
+
+export async function getSuperAdminSession(): Promise<SuperAdminSession | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SUPER_ADMIN_SESSION_COOKIE)?.value;
+
+  if (!token) {
+    return null;
+  }
+
+  const session = await prisma.app_session.findUnique({
+    where: {
+      tokenHash: hashToken(token),
+    },
+    include: {
+      superAdmin: { select: { id: true, name: true, username: true, email: true } },
+    },
+  });
+
+  if (
+    !session ||
+    !session.superAdmin ||
+    session.expiresAt <= new Date() ||
+    !session.superAdmin.isActive
+  ) {
+    return null;
+  }
+
+  return {
+    id: session.superAdmin.id,
+    name: session.superAdmin.name,
+    username: session.superAdmin.username,
+    email: session.superAdmin.email,
+  };
+}
+
+export async function clearAuthSessions() {
+  const cookieStore = await cookies();
+  const storeToken = cookieStore.get(STORE_SESSION_COOKIE)?.value;
+  const superToken = cookieStore.get(SUPER_ADMIN_SESSION_COOKIE)?.value;
+
+  await Promise.all([
+    storeToken
+      ? prisma.app_session.deleteMany({
+          where: {
+            tokenHash: hashToken(storeToken),
+          },
+        })
+      : Promise.resolve(),
+    superToken
+      ? prisma.app_session.deleteMany({
+          where: {
+            tokenHash: hashToken(superToken),
+          },
+        })
+      : Promise.resolve(),
+  ]);
+
+  cookieStore.delete(STORE_SESSION_COOKIE);
+  cookieStore.delete(SUPER_ADMIN_SESSION_COOKIE);
+}
+
+export async function exitSuperAdminStoreOverride() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(STORE_SESSION_COOKIE)?.value;
+
+  if (token) {
+    await prisma.app_session.deleteMany({
+      where: { tokenHash: hashToken(token) },
+    });
+  }
+
+  cookieStore.delete(STORE_SESSION_COOKIE);
+}
+
+========== .\src\lib\audit.ts ==========
+
+import { prisma } from "@/lib/prisma";
+
+export type AuditActorType = "STORE_USER" | "SUPER_ADMIN" | "SYSTEM";
+
+export type AuditLogInput = {
+  storeId?: number | null;
+  storeUserId?: number | null;
+  superAdminId?: number | null;
+  actorType: AuditActorType;
+  module: string;
+  action: string;
+  entity?: string | null;
+  entityId?: number | string | null;
+  description: string;
+  metadata?: unknown;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+};
+
+export async function writeAuditLog(input: AuditLogInput) {
+  try {
+    await prisma.audit_log.create({
+      data: {
+        storeId: input.storeId ?? null,
+        storeUserId: input.storeUserId ?? null,
+        superAdminId: input.superAdminId ?? null,
+        actorType: input.actorType,
+        module: input.module,
+        action: input.action,
+        entity: input.entity ?? null,
+        entityId:
+          input.entityId === undefined || input.entityId === null
+            ? null
+            : String(input.entityId),
+        description: input.description,
+        metadata: input.metadata as never,
+        ipAddress: input.ipAddress ?? null,
+        userAgent: input.userAgent ?? null,
+      },
+    });
+  } catch (error) {
+    console.error("Audit log write failed:", error);
+  }
+}
+
+export function getRequestAuditContext(request: Request) {
+  return {
+    ipAddress:
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      request.headers.get("x-real-ip") ??
+      null,
+    userAgent: request.headers.get("user-agent") ?? null,
+  };
+}
+
+========== .\src\app\api\admin\store-profile\route.ts ==========
+
+import { NextResponse } from "next/server";
+
+import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth";
+import { getRequestAuditContext, writeAuditLog } from "@/lib/audit";
+
+export const runtime = "nodejs";
+
+async function getAuthorizedStoreAdmin() {
+  const session = await getSession();
+
+  if (!session) {
+    return { error: "Unauthorized", status: 401 as const };
+  }
+
+  if (session.role !== "OWNER" && session.role !== "ADMIN") {
+    return { error: "You do not have permission", status: 403 as const };
+  }
+
+  const store = await prisma.store.findFirst({
+    where: {
+      id: session.storeId,
+      isActive: true,
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      currency: true,
+      template: true,
+    },
+  });
+
+  if (!store) {
+    return { error: "Store is inactive or not found", status: 403 as const };
+  }
+
+  return { session, store };
+}
+
+async function ensureConfiguration(storeId: number, storeName: string) {
+  const [profile, settings, theme, store] = await Promise.all([
+    prisma.store_profile.upsert({
+      where: { storeId },
+      create: { storeId, displayName: storeName },
+      update: {},
+    }),
+    prisma.store_settings.upsert({
+      where: { storeId },
+      create: { storeId },
+      update: {},
+    }),
+    prisma.store_theme.upsert({
+      where: { storeId },
+      create: { storeId },
+      update: {},
+    }),
+    prisma.store.findUnique({
+      where: { id: storeId },
+      select: { template: true },
+    }),
+  ]);
+
+  return { profile, settings, theme, template: store?.template ?? "MODERN" };
+}
+
+export async function GET() {
+  try {
+    const auth = await getAuthorizedStoreAdmin();
+
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    const config = await ensureConfiguration(auth.store.id, auth.store.name);
+    const heroSlides = await prisma.hero_slide.findMany({
+      where: { storeId: auth.store.id },
+      orderBy: { sortOrder: "asc" },
+    });
+
+    return NextResponse.json({
+      success: true,
+      store: auth.store,
+      profile: config.profile,
+      settings: config.settings,
+      theme: config.theme,
+      template: config.template,
+      heroSlides,
+    });
+  } catch (error) {
+    console.error("GET store profile error:", error);
+    return NextResponse.json(
+      { error: "Failed to load store profile" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const auth = await getAuthorizedStoreAdmin();
+
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    const body: unknown = await request.json();
+
+    if (!body || typeof body !== "object") {
+      return NextResponse.json(
+        { error: "Invalid request body" },
+        { status: 400 },
+      );
+    }
+
+    const data = body as Record<string, unknown>;
+    const profile = (data.profile && typeof data.profile === "object"
+      ? data.profile
+      : {}) as Record<string, unknown>;
+    const settings = (data.settings && typeof data.settings === "object"
+      ? data.settings
+      : {}) as Record<string, unknown>;
+    const theme = (data.theme && typeof data.theme === "object"
+      ? data.theme
+      : {}) as Record<string, unknown>;
+
+    const template = String(data.template ?? auth.store.template);
+    const allowedTemplates = ["MODERN", "CLASSIC", "MINIMAL"];
+
+    if (!allowedTemplates.includes(template)) {
+      return NextResponse.json(
+        { error: "Invalid storefront template" },
+        { status: 400 },
+      );
+    }
+
+    const heroOfferPercent = Number(settings.heroOfferPercent ?? 30);
+    const freeDeliveryThreshold = Number(settings.freeDeliveryThreshold ?? 5000);
+    const deliveryCharge = Number(settings.deliveryCharge ?? 0);
+    const minimumOrder = Number(settings.minimumOrder ?? 0);
+
+    if (
+      !Number.isInteger(heroOfferPercent) ||
+      heroOfferPercent < 0 ||
+      heroOfferPercent > 100 ||
+      !Number.isFinite(freeDeliveryThreshold) ||
+      freeDeliveryThreshold < 0 ||
+      !Number.isFinite(deliveryCharge) ||
+      deliveryCharge < 0 ||
+      !Number.isFinite(minimumOrder) ||
+      minimumOrder < 0
+    ) {
+      return NextResponse.json(
+        { error: "Invalid storefront numeric settings" },
+        { status: 400 },
+      );
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updatedStore = await tx.store.update({
+        where: { id: auth.store.id },
+        data: {
+          name: String(profile.businessName ?? auth.store.name).trim().slice(0, 150),
+          currency: String(data.currency ?? auth.store.currency).trim().toUpperCase().slice(0, 3) || "LKR",
+          template: template as "MODERN" | "CLASSIC" | "MINIMAL",
+        },
+        select: { id: true, name: true, slug: true, currency: true, template: true },
+      });
+
+      const updatedProfile = await tx.store_profile.upsert({
+        where: { storeId: auth.store.id },
+        create: {
+          storeId: auth.store.id,
+          displayName: String(profile.displayName ?? updatedStore.name).trim().slice(0, 150),
+        },
+        update: {},
+      });
+
+      const profileData = {
+        displayName: String(profile.displayName ?? updatedProfile.displayName).trim().slice(0, 150),
+        tagline: String(profile.tagline ?? "").trim() || null,
+        description: String(profile.description ?? "").trim() || null,
+        phone: String(profile.phone ?? "").trim() || null,
+        whatsapp: String(profile.whatsapp ?? "").trim() || null,
+        email: String(profile.email ?? "").trim().toLowerCase() || null,
+        supportEmail: String(profile.supportEmail ?? "").trim().toLowerCase() || null,
+        addressLine1: String(profile.addressLine1 ?? "").trim() || null,
+        addressLine2: String(profile.addressLine2 ?? "").trim() || null,
+        city: String(profile.city ?? "").trim() || null,
+        district: String(profile.district ?? "").trim() || null,
+        province: String(profile.province ?? "").trim() || null,
+        postalCode: String(profile.postalCode ?? "").trim() || null,
+        country: String(profile.country ?? "").trim() || null,
+        facebookUrl: String(profile.facebookUrl ?? "").trim() || null,
+        instagramUrl: String(profile.instagramUrl ?? "").trim() || null,
+        tiktokUrl: String(profile.tiktokUrl ?? "").trim() || null,
+        youtubeUrl: String(profile.youtubeUrl ?? "").trim() || null,
+        aboutText: String(profile.aboutText ?? "").trim() || null,
+        shippingPolicy: String(profile.shippingPolicy ?? "").trim() || null,
+        returnsPolicy: String(profile.returnsPolicy ?? "").trim() || null,
+        refundPolicy: String(profile.refundPolicy ?? "").trim() || null,
+        privacyPolicy: String(profile.privacyPolicy ?? "").trim() || null,
+        termsText: String(profile.termsText ?? "").trim() || null,
+        faqText: String(profile.faqText ?? "").trim() || null,
+      };
+
+      const savedProfile = await tx.store_profile.update({
+        where: { storeId: auth.store.id },
+        data: profileData,
+      });
+
+      const savedSettings = await tx.store_settings.upsert({
+        where: { storeId: auth.store.id },
+        create: {
+          storeId: auth.store.id,
+          heroOfferPercent,
+          freeDeliveryThreshold,
+          deliveryCharge,
+          minimumOrder,
+          allowPickup: Boolean(settings.allowPickup),
+          cashOnDelivery: settings.cashOnDelivery === undefined ? true : Boolean(settings.cashOnDelivery),
+          bankTransfer: settings.bankTransfer === undefined ? true : Boolean(settings.bankTransfer),
+          cardPayment: Boolean(settings.cardPayment),
+          onlinePayment: Boolean(settings.onlinePayment),
+          islandwideDelivery: settings.islandwideDelivery === undefined ? true : Boolean(settings.islandwideDelivery),
+        },
+        update: {
+          heroOfferPercent,
+          freeDeliveryThreshold,
+          deliveryCharge,
+          minimumOrder,
+          allowPickup: Boolean(settings.allowPickup),
+          cashOnDelivery: settings.cashOnDelivery === undefined ? true : Boolean(settings.cashOnDelivery),
+          bankTransfer: settings.bankTransfer === undefined ? true : Boolean(settings.bankTransfer),
+          cardPayment: Boolean(settings.cardPayment),
+          onlinePayment: Boolean(settings.onlinePayment),
+          islandwideDelivery: settings.islandwideDelivery === undefined ? true : Boolean(settings.islandwideDelivery),
+        },
+      });
+
+      const savedTheme = await tx.store_theme.upsert({
+        where: { storeId: auth.store.id },
+        create: {
+          storeId: auth.store.id,
+          primaryColor: String(theme.primaryColor ?? "#d71920"),
+          secondaryColor: String(theme.secondaryColor ?? "#111111"),
+          accentColor: String(theme.accentColor ?? "#f59e0b"),
+          backgroundColor: String(theme.backgroundColor ?? "#ffffff"),
+          surfaceColor: String(theme.surfaceColor ?? "#f6f5f2"),
+          textColor: String(theme.textColor ?? "#111111"),
+          mutedColor: String(theme.mutedColor ?? "#6b7280"),
+          headerStyle: String(theme.headerStyle ?? "CLASSIC"),
+          buttonStyle: String(theme.buttonStyle ?? "ROUNDED"),
+        },
+        update: {
+          primaryColor: String(theme.primaryColor ?? "#d71920"),
+          secondaryColor: String(theme.secondaryColor ?? "#111111"),
+          accentColor: String(theme.accentColor ?? "#f59e0b"),
+          backgroundColor: String(theme.backgroundColor ?? "#ffffff"),
+          surfaceColor: String(theme.surfaceColor ?? "#f6f5f2"),
+          textColor: String(theme.textColor ?? "#111111"),
+          mutedColor: String(theme.mutedColor ?? "#6b7280"),
+          headerStyle: String(theme.headerStyle ?? "CLASSIC"),
+          buttonStyle: String(theme.buttonStyle ?? "ROUNDED"),
+        },
+      });
+
+      return { updatedStore, savedProfile, savedSettings, savedTheme };
+    });
+
+    await writeAuditLog({
+      storeId: auth.store.id,
+      storeUserId: auth.session.userId,
+      actorType: "STORE_USER",
+      module: "STORE_PROFILE",
+      action: "UPDATE",
+      entity: "STORE",
+      entityId: auth.store.id,
+      description: `${auth.session.name} updated storefront profile, settings and theme.`,
+      metadata: { template, heroOfferPercent },
+      ...getRequestAuditContext(request),
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Storefront settings saved successfully.",
+      ...result,
+    });
+  } catch (error) {
+    console.error("PATCH store profile error:", error);
+    return NextResponse.json(
+      { error: "Failed to save storefront settings" },
+      { status: 500 },
+    );
+  }
+}
+
+========== .\src\app\api\auth\login\route.ts ==========
+
+import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+
+import { prisma } from "@/lib/prisma";
+import { createStoreAdminSession } from "@/lib/auth";
+import { getRequestAuditContext, writeAuditLog } from "@/lib/audit";
+
+export const runtime = "nodejs";
+
+export async function POST(request: Request) {
+  try {
+    const body: unknown = await request.json();
+
+    const username =
+      body && typeof body === "object" && "username" in body
+        ? String((body as { username?: unknown }).username ?? "")
+            .trim()
+            .toLowerCase()
+        : body && typeof body === "object" && "identifier" in body
+          ? String((body as { identifier?: unknown }).identifier ?? "")
+              .trim()
+              .toLowerCase()
+          : "";
+
+    const password =
+      body && typeof body === "object" && "password" in body
+        ? String((body as { password?: unknown }).password ?? "")
+        : "";
+
+    if (!username || !password) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Username and password are required.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const user = await prisma.store_user.findFirst({
+      where: {
+        OR: [
+          { username },
+          { email: username },
+        ],
+      },
+      include: {
+        store: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            isActive: true,
+          },
+        },
+      },
+    });
+
+    if (!user || !user.isActive || !user.store.isActive) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid username or password.",
+        },
+        { status: 401 },
+      );
+    }
+
+    const passwordValid = await bcrypt.compare(
+      password,
+      user.passwordHash,
+    );
+
+    if (!passwordValid) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid username or password.",
+        },
+        { status: 401 },
+      );
+    }
+
+    await createStoreAdminSession(user.id);
+
+    const auditContext = getRequestAuditContext(request);
+
+    await writeAuditLog({
+      storeId: user.store.id,
+      storeUserId: user.id,
+      actorType: "STORE_USER",
+      module: "AUTH",
+      action: "LOGIN",
+      entity: "STORE_USER",
+      entityId: user.id,
+      description: `${user.name} signed in to ${user.store.name}.`,
+      ...auditContext,
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Login successful.",
+      user: {
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        storeId: user.store.id,
+        storeSlug: user.store.slug,
+      },
+    });
+  } catch (error) {
+    console.error("Store admin login error:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Unable to process login.",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+========== .\prisma\schema.prisma ==========
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum StorefrontTemplate {
+  MODERN
+  CLASSIC
+  MINIMAL
+}
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CustomerStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  READY
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH_ON_DELIVERY
+  BANK_TRANSFER
+}
+
+enum PaymentStatus {
+  PENDING
+  AWAITING_VERIFICATION
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum DeliveryMethod {
+  DELIVERY
+  PICKUP
+}
+
+enum StoreUserRole {
+  OWNER
+  ADMIN
+  STAFF
+}
+
+enum AuditActorType {
+  SUPER_ADMIN
+  STORE_USER
+}
+
+model store {
+  id               Int                @id @default(autoincrement())
+  name             String             @db.VarChar(150)
+  slug             String             @unique @db.VarChar(120)
+  description      String?            @db.Text
+  logoUrl          String?            @db.VarChar(500)
+  primaryColor     String?            @db.VarChar(20)
+  template         StorefrontTemplate @default(MODERN)
+  heroOfferPercent Int                @default(30)
+  currency         String             @default("LKR") @db.VarChar(3)
+  isActive         Boolean            @default(true)
+
+  products      product[]
+  categories    category[]
+  customers     customer[]
+  orders        order[]
+  deliveryZones delivery_zone[]
+  users         store_user[]
+  profile       store_profile?
+  settings      store_settings?
+  theme         store_theme?
+  heroSlides    hero_slide[]
+  auditLogs     audit_log[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+model store_profile {
+  id Int @id @default(autoincrement())
+
+  storeId Int @unique
+
+  businessName String? @db.VarChar(200)
+  displayName  String? @db.VarChar(150)
+  tagline      String? @db.VarChar(300)
+  description  String? @db.Text
+
+  logoUrl    String? @db.VarChar(500)
+  faviconUrl String? @db.VarChar(500)
+
+  phone    String? @db.VarChar(40)
+  whatsapp String? @db.VarChar(40)
+  email    String? @db.VarChar(191)
+
+  addressLine1 String? @db.VarChar(255)
+  addressLine2 String? @db.VarChar(255)
+  city         String? @db.VarChar(120)
+  district     String? @db.VarChar(120)
+  postalCode   String? @db.VarChar(30)
+  country      String? @db.VarChar(100)
+
+  businessHours Json?
+
+  facebookUrl  String? @db.VarChar(500)
+  instagramUrl String? @db.VarChar(500)
+  tiktokUrl    String? @db.VarChar(500)
+  youtubeUrl   String? @db.VarChar(500)
+  websiteUrl   String? @db.VarChar(500)
+
+  aboutText      String? @db.Text
+  shippingPolicy String? @db.Text
+  returnPolicy   String? @db.Text
+  privacyPolicy  String? @db.Text
+  termsText      String? @db.Text
+  faqText        String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+}
+
+model store_settings {
+  id Int @id @default(autoincrement())
+
+  storeId Int @unique
+
+  currency String @default("LKR") @db.VarChar(3)
+
+  deliveryEnabled Boolean @default(true)
+  pickupEnabled   Boolean @default(false)
+
+  freeDeliveryEnabled   Boolean  @default(false)
+  freeDeliveryThreshold Decimal? @db.Decimal(12, 2)
+
+  minimumOrderEnabled Boolean  @default(false)
+  minimumOrderAmount  Decimal? @db.Decimal(12, 2)
+
+  cashOnDeliveryEnabled Boolean @default(true)
+  bankTransferEnabled   Boolean @default(true)
+
+  taxEnabled Boolean  @default(false)
+  taxPercent Decimal? @db.Decimal(5, 2)
+
+  defaultDeliveryMethod DeliveryMethod @default(DELIVERY)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+}
+
+model store_theme {
+  id Int @id @default(autoincrement())
+
+  storeId Int @unique
+
+  template StorefrontTemplate @default(MODERN)
+
+  primaryColor   String @default("#d71920") @db.VarChar(20)
+  secondaryColor String @default("#111111") @db.VarChar(20)
+  accentColor    String @default("#f5c542") @db.VarChar(20)
+
+  backgroundColor String @default("#ffffff") @db.VarChar(20)
+  surfaceColor    String @default("#f5f5f5") @db.VarChar(20)
+  textColor       String @default("#111111") @db.VarChar(20)
+  mutedColor      String @default("#6b7280") @db.VarChar(20)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+}
+
+model hero_slide {
+  id Int @id @default(autoincrement())
+
+  storeId Int
+
+  imageUrl String @db.VarChar(1000)
+
+  eyebrow     String? @db.VarChar(150)
+  title       String? @db.VarChar(200)
+  accentText  String? @db.VarChar(200)
+  description String? @db.VarChar(500)
+
+  buttonText String? @db.VarChar(100)
+  buttonUrl  String? @db.VarChar(500)
+
+  offerPercent Int?
+
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  store store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, sortOrder])
+  @@index([storeId, isActive])
+}
+
+model category {
+  id          Int     @id @default(autoincrement())
+  storeId     Int
+  name        String  @db.VarChar(120)
+  slug        String  @db.VarChar(140)
+  description String? @db.Text
+  imageUrl    String? @db.VarChar(500)
+  isActive    Boolean @default(true)
+
+  store    store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  parent   category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children category[] @relation("CategoryTree")
+  parentId Int?
+
+  products product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, slug])
+  @@index([storeId, isActive])
+  @@index([parentId])
+}
+
+model product {
+  id              Int  @id @default(autoincrement())
+  storeId         Int
+  categoryId      Int?
+  globalProductId Int?
+
+  name             String        @db.VarChar(200)
+  slug             String        @db.VarChar(220)
+  sku              String?       @db.VarChar(100)
+  shortDescription String?       @db.VarChar(500)
+  description      String?       @db.Text
+  price            Decimal       @db.Decimal(12, 2)
+  compareAtPrice   Decimal?      @db.Decimal(12, 2)
+  status           ProductStatus @default(DRAFT)
+  isAvailable      Boolean       @default(true)
+  isFeatured       Boolean       @default(false)
+
+  store         store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category      category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  globalProduct global_product? @relation(fields: [globalProductId], references: [id], onDelete: SetNull)
+
+  images     product_image[]
+  orderItems order_item[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, slug])
+  @@unique([storeId, sku])
+  @@index([storeId, status, isAvailable])
+  @@index([storeId, categoryId])
+  @@index([storeId, isFeatured])
+  @@index([globalProductId])
+}
+
+model product_image {
+  id        Int     @id @default(autoincrement())
+  productId Int
+  imageUrl  String  @db.VarChar(1000)
+  altText   String? @db.VarChar(255)
+  sortOrder Int     @default(0)
+  isPrimary Boolean @default(false)
+
+  product product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([productId, sortOrder])
+}
+
+model global_product {
+  id               Int     @id @default(autoincrement())
+  barcode          String  @unique @db.VarChar(50)
+  brand            String? @db.VarChar(150)
+  name             String  @db.VarChar(200)
+  shortDescription String? @db.VarChar(500)
+  description      String? @db.Text
+
+  products product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([brand])
+}
+
+model customer {
+  id           Int            @id @default(autoincrement())
+  storeId      Int
+  name         String         @db.VarChar(150)
+  email        String?        @db.VarChar(191)
+  phone        String?        @db.VarChar(40)
+  passwordHash String?        @db.VarChar(255)
+  status       CustomerStatus @default(ACTIVE)
+
+  store  store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orders order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, email])
+  @@index([storeId, phone])
+  @@index([storeId, name])
+}
+
+model delivery_zone {
+  id          Int     @id @default(autoincrement())
+  storeId     Int
+  name        String  @db.VarChar(120)
+  description String? @db.VarChar(500)
+  charge      Decimal @db.Decimal(12, 2)
+  isActive    Boolean @default(true)
+
+  store  store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orders order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, name])
+  @@index([storeId, isActive])
+}
+
+model order {
+  id             Int            @id @default(autoincrement())
+  storeId        Int
+  customerId     Int?
+  deliveryZoneId Int?
+  orderNumber    String         @db.VarChar(40)
+  status         OrderStatus    @default(PENDING)
+  paymentMethod  PaymentMethod
+  paymentStatus  PaymentStatus  @default(PENDING)
+  deliveryMethod DeliveryMethod @default(DELIVERY)
+
+  customerName  String  @db.VarChar(150)
+  customerEmail String? @db.VarChar(191)
+  customerPhone String  @db.VarChar(40)
+
+  shippingAddress  String? @db.Text
+  shippingCity     String? @db.VarChar(120)
+  shippingDistrict String? @db.VarChar(120)
+  deliveryNotes    String? @db.Text
+
+  subtotal       Decimal @db.Decimal(12, 2)
+  deliveryCharge Decimal @default(0) @db.Decimal(12, 2)
+  discount       Decimal @default(0) @db.Decimal(12, 2)
+  total          Decimal @db.Decimal(12, 2)
+
+  bankTransferReference String? @db.VarChar(150)
+  adminNotes            String? @db.Text
+
+  store        store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer     customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  deliveryZone delivery_zone? @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
+
+  items order_item[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, orderNumber])
+  @@index([storeId, status, createdAt])
+  @@index([storeId, paymentStatus])
+  @@index([customerId])
+}
+
+model order_item {
+  id          Int     @id @default(autoincrement())
+  orderId     Int
+  productId   Int?
+  productName String  @db.VarChar(200)
+  sku         String? @db.VarChar(100)
+  imageUrl    String? @db.VarChar(1000)
+  unitPrice   Decimal @db.Decimal(12, 2)
+  quantity    Int
+  lineTotal   Decimal @db.Decimal(12, 2)
+
+  order   order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model store_user {
+  id      Int    @id @default(autoincrement())
+  storeId Int
+  name    String @db.VarChar(150)
+
+  // Global username for store-admin login.
+  // Nullable temporarily so existing accounts can be migrated safely.
+  username String? @unique @db.VarChar(100)
+
+  email        String        @db.VarChar(191)
+  passwordHash String        @db.VarChar(255)
+  role         StoreUserRole @default(ADMIN)
+  isActive     Boolean       @default(true)
+
+  store store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  auditLogs audit_log[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, email])
+  @@index([storeId, isActive])
+}
+
+model super_admin {
+  id           Int     @id @default(autoincrement())
+  name         String  @db.VarChar(150)
+  username     String  @unique @db.VarChar(100)
+  email        String? @unique @db.VarChar(191)
+  passwordHash String  @db.VarChar(255)
+  isActive     Boolean @default(true)
+
+  auditLogs audit_log[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+model audit_log {
+  id Int @id @default(autoincrement())
+
+  storeId Int?
+
+  actorType AuditActorType
+
+  storeUserId  Int?
+  superAdminId Int?
+
+  module      String  @db.VarChar(100)
+  action      String  @db.VarChar(100)
+  entity      String? @db.VarChar(100)
+  entityId    String? @db.VarChar(100)
+  description String  @db.Text
+
+  metadata Json?
+
+  ipAddress String? @db.VarChar(100)
+  userAgent String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  store      store?       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeUser  store_user?  @relation(fields: [storeUserId], references: [id], onDelete: SetNull)
+  superAdmin super_admin? @relation(fields: [superAdminId], references: [id], onDelete: SetNull)
+
+  @@index([storeId, createdAt])
+  @@index([storeId, module, createdAt])
+  @@index([storeId, actorType, createdAt])
+  @@index([storeUserId, createdAt])
+  @@index([superAdminId, createdAt])
+  @@index([entity, entityId])
+}

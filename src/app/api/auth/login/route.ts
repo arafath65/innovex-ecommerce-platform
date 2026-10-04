@@ -1,88 +1,214 @@
-
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
 import { prisma } from "@/lib/prisma";
-import { createSession } from "@/lib/auth";
+import { createStoreAdminSession } from "@/lib/auth";
+import {
+  getRequestAuditContext,
+  writeAuditLog,
+} from "@/lib/audit";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const body: unknown = await request.json();
 
-    const storeSlug =
-      typeof body.storeSlug === "string"
-        ? body.storeSlug.trim().toLowerCase()
-        : "";
-
-    const email =
-      typeof body.email === "string"
-        ? body.email.trim().toLowerCase()
-        : "";
+    const identifier =
+      body &&
+      typeof body === "object" &&
+      "username" in body
+        ? String(
+            (body as { username?: unknown })
+              .username ?? "",
+          )
+            .trim()
+            .toLowerCase()
+        : body &&
+            typeof body === "object" &&
+            "identifier" in body
+          ? String(
+              (
+                body as {
+                  identifier?: unknown;
+                }
+              ).identifier ?? "",
+            )
+              .trim()
+              .toLowerCase()
+          : "";
 
     const password =
-      typeof body.password === "string" ? body.password : "";
+      body &&
+      typeof body === "object" &&
+      "password" in body
+        ? String(
+            (body as { password?: unknown })
+              .password ?? "",
+          )
+        : "";
 
-    if (!storeSlug || !email || !password) {
+    console.log("=== STORE LOGIN DEBUG ===");
+    console.log("Identifier:", identifier);
+    console.log(
+      "Password received:",
+      password ? "YES" : "NO",
+    );
+
+    if (!identifier || !password) {
+      console.log("LOGIN FAILED: missing credentials");
+
       return NextResponse.json(
-        { success: false, message: "Please enter all login details." },
+        {
+          success: false,
+          message:
+            "Username and password are required.",
+        },
         { status: 400 },
       );
     }
 
-    const store = await prisma.store.findUnique({
-      where: { slug: storeSlug },
-      select: {
-        id: true,
-        slug: true,
-        isActive: true,
-      },
-    });
-
-    if (!store || !store.isActive) {
-      return NextResponse.json(
-        { success: false, message: "Invalid email or password." },
-        { status: 401 },
-      );
-    }
-
-    const user = await prisma.storeUser.findUnique({
+    const user = await prisma.store_user.findFirst({
       where: {
-        storeId_email: {
-          storeId: store.id,
-          email,
+        OR: [
+          {
+            username: identifier,
+          },
+          {
+            email: identifier,
+          },
+        ],
+      },
+      include: {
+        store: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            isActive: true,
+          },
         },
       },
     });
 
-    if (!user || !user.isActive) {
-      return NextResponse.json(
-        { success: false, message: "Invalid email or password." },
-        { status: 401 },
-      );
-    }
-
-    const passwordMatches = await bcrypt.compare(
-      password,
-      user.passwordHash,
+    console.log(
+      "USER FOUND:",
+      user
+        ? {
+            id: user.id,
+            storeId: user.storeId,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            userActive: user.isActive,
+            storeActive: user.store.isActive,
+          }
+        : null,
     );
 
-    if (!passwordMatches) {
+    if (!user) {
+      console.log("LOGIN FAILED: user not found");
+
       return NextResponse.json(
-        { success: false, message: "Invalid email or password." },
+        {
+          success: false,
+          message:
+            "Invalid username or password.",
+        },
         { status: 401 },
       );
     }
 
-    await createSession({
-      userId: user.id,
-      storeId: store.id,
-      storeSlug: store.slug,
-      name: user.name,
-      email: user.email,
-      role: user.role,
+    if (!user.isActive) {
+      console.log(
+        "LOGIN FAILED: user inactive",
+      );
+
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Invalid username or password.",
+        },
+        { status: 401 },
+      );
+    }
+
+    if (!user.store.isActive) {
+      console.log(
+        "LOGIN FAILED: store inactive",
+      );
+
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Invalid username or password.",
+        },
+        { status: 401 },
+      );
+    }
+
+    console.log(
+      "Hash prefix:",
+      user.passwordHash.substring(0, 4),
+    );
+
+    console.log(
+      "Hash length:",
+      user.passwordHash.length,
+    );
+
+    const passwordValid =
+      await bcrypt.compare(
+        password,
+        user.passwordHash,
+      );
+
+    console.log(
+      "PASSWORD MATCH:",
+      passwordValid,
+    );
+
+    if (!passwordValid) {
+      console.log(
+        "LOGIN FAILED: bcrypt mismatch",
+      );
+
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Invalid username or password.",
+        },
+        { status: 401 },
+      );
+    }
+
+    console.log(
+      "PASSWORD VALID - creating session",
+    );
+
+    await createStoreAdminSession(user.id);
+
+    console.log(
+      "SESSION CREATED FOR USER:",
+      user.id,
+    );
+
+    await writeAuditLog({
+      storeId: user.store.id,
+      storeUserId: user.id,
+      actorType: "STORE_USER",
+      module: "AUTH",
+      action: "LOGIN",
+      entity: "STORE_USER",
+      entityId: user.id,
+      description: `${user.name} signed in to ${user.store.name}.`,
+      ...getRequestAuditContext(request),
     });
+
+    console.log("LOGIN SUCCESS");
 
     return NextResponse.json({
       success: true,
@@ -90,16 +216,25 @@ export async function POST(request: Request) {
       user: {
         id: user.id,
         name: user.name,
+        username: user.username,
         email: user.email,
         role: user.role,
-        storeSlug: store.slug,
+        storeId: user.store.id,
+        storeSlug: user.store.slug,
       },
     });
   } catch (error) {
-    console.error("Login API error:", error);
+    console.error(
+      "STORE LOGIN ERROR:",
+      error,
+    );
 
     return NextResponse.json(
-      { success: false, message: "An unexpected error occurred." },
+      {
+        success: false,
+        message:
+          "Unable to process login.",
+      },
       { status: 500 },
     );
   }

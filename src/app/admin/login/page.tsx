@@ -1,4 +1,3 @@
-
 "use client";
 
 import { FormEvent, useRef, useState } from "react";
@@ -14,6 +13,7 @@ type LoginResponse = {
   user?: {
     id: number;
     name: string;
+    username: string | null;
     email: string;
     role: string;
     storeSlug: string;
@@ -24,7 +24,7 @@ export default function AdminLoginPage() {
   const pageRef = useRef<HTMLElement | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
 
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -52,7 +52,7 @@ export default function AdminLoginPage() {
             scale: 0.985,
             duration: 0.65,
           },
-          "-=0.45"
+          "-=0.45",
         )
         .from(
           ".login-item",
@@ -62,21 +62,29 @@ export default function AdminLoginPage() {
             duration: 0.35,
             stagger: 0.055,
           },
-          "-=0.25"
+          "-=0.25",
         );
     },
-    { scope: pageRef }
+    { scope: pageRef },
   );
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
     event.preventDefault();
 
-    if (submitting) return;
+    if (submitting) {
+      return;
+    }
 
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedIdentifier = identifier
+      .trim()
+      .toLowerCase();
 
-    if (!normalizedEmail || !password) {
-      setError("Please enter your email and password.");
+    if (!normalizedIdentifier || !password) {
+      setError(
+        "Please enter your username or email and password.",
+      );
       return;
     }
 
@@ -90,23 +98,26 @@ export default function AdminLoginPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          username: normalizedIdentifier,
           storeSlug: STORE_CONFIG.slug,
-          email: normalizedEmail,
           password,
         }),
       });
 
-      const data: LoginResponse = await response.json();
+      const data: LoginResponse =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
-          data.message || "Invalid email or password."
+          data.message ||
+            "Invalid username or password.",
         );
       }
 
       if (!data.success) {
         throw new Error(
-          data.message || "Unable to sign in."
+          data.message ||
+            "Unable to sign in.",
         );
       }
 
@@ -117,14 +128,16 @@ export default function AdminLoginPage() {
         duration: 0.28,
         ease: "power2.in",
         onComplete: () => {
-          window.location.assign("/admin/dashboard");
+          window.location.assign(
+            "/admin/dashboard",
+          );
         },
       });
     } catch (submissionError) {
       setError(
         submissionError instanceof Error
           ? submissionError.message
-          : "Unable to sign in."
+          : "Unable to sign in.",
       );
 
       setSubmitting(false);
@@ -139,7 +152,7 @@ export default function AdminLoginPage() {
           yoyo: true,
           clearProps: "x",
           ease: "power1.inOut",
-        }
+        },
       );
     }
   }
@@ -162,7 +175,8 @@ export default function AdminLoginPage() {
         <div
           className="h-1.5"
           style={{
-            backgroundColor: STORE_CONFIG.primaryColor,
+            backgroundColor:
+              STORE_CONFIG.primaryColor,
           }}
         />
 
@@ -190,25 +204,27 @@ export default function AdminLoginPage() {
 
           {/* LOGIN FORM */}
           <form onSubmit={handleSubmit}>
-            {/* EMAIL */}
+            {/* USERNAME / EMAIL */}
             <div className="login-item">
               <label
-                htmlFor="email"
+                htmlFor="identifier"
                 className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.13em] text-black/48"
               >
-                Email
+                Username or Email
               </label>
 
               <input
-                id="email"
-                name="email"
-                type="email"
-                value={email}
+                id="identifier"
+                name="identifier"
+                type="text"
+                value={identifier}
                 onChange={(event) =>
-                  setEmail(event.target.value)
+                  setIdentifier(
+                    event.target.value,
+                  )
                 }
-                autoComplete="email"
-                placeholder="Enter email address"
+                autoComplete="username"
+                placeholder="Enter username or email"
                 required
                 disabled={submitting}
                 className="h-12 w-full rounded-[13px] border border-black/10 bg-[#fafafa] px-4 text-sm text-[#151515] outline-none transition placeholder:text-black/25 focus:border-[#d71920]/45 focus:bg-white focus:ring-4 focus:ring-[#d71920]/8 disabled:cursor-not-allowed disabled:opacity-60"
@@ -235,7 +251,9 @@ export default function AdminLoginPage() {
                   }
                   value={password}
                   onChange={(event) =>
-                    setPassword(event.target.value)
+                    setPassword(
+                      event.target.value,
+                    )
                   }
                   autoComplete="current-password"
                   placeholder="Enter password"
@@ -248,7 +266,7 @@ export default function AdminLoginPage() {
                   type="button"
                   onClick={() =>
                     setShowPassword(
-                      (value) => !value
+                      (value) => !value,
                     )
                   }
                   disabled={submitting}
@@ -259,7 +277,9 @@ export default function AdminLoginPage() {
                       : "Show password"
                   }
                 >
-                  {showPassword ? "Hide" : "Show"}
+                  {showPassword
+                    ? "Hide"
+                    : "Show"}
                 </button>
               </div>
             </div>
@@ -303,7 +323,8 @@ export default function AdminLoginPage() {
           {/* FOOTER */}
           <div className="login-item mt-5 border-t border-black/7 pt-4 text-center">
             <p className="text-[9px] font-medium uppercase tracking-[0.15em] text-black/28">
-              Authorized store administrators only
+              Authorized store administrators
+              only
             </p>
           </div>
         </div>

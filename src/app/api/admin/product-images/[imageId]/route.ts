@@ -44,7 +44,7 @@ export async function DELETE(
       );
     }
 
-    const image = await prisma.productImage.findUnique({
+    const image = await prisma.product_image.findUnique({
       where: {
         id: imageId,
       },
@@ -64,7 +64,7 @@ export async function DELETE(
       );
     }
 
-    await prisma.productImage.delete({
+    await prisma.product_image.delete({
       where: {
         id: imageId,
       },

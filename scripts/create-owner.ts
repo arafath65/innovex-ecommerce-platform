@@ -49,7 +49,7 @@ async function main() {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    const existing = await prisma.storeUser.findUnique({
+    const existing = await prisma.store_user.findUnique({
       where: {
         storeId_email: {
           storeId: store.id,
@@ -64,7 +64,7 @@ async function main() {
       );
     }
 
-    const owner = await prisma.storeUser.create({
+    const owner = await prisma.store_user.create({
       data: {
         storeId: store.id,
         name,

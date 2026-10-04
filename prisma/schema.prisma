@@ -58,23 +58,35 @@ enum StoreUserRole {
   STAFF
 }
 
-model Store {
-  id           Int                @id @default(autoincrement())
-  name         String             @db.VarChar(150)
-  slug         String             @unique @db.VarChar(120)
-  description  String?            @db.Text
-  logoUrl      String?            @db.VarChar(500)
-  primaryColor String?            @db.VarChar(20)
-  template     StorefrontTemplate @default(MODERN)
-  currency     String             @default("LKR") @db.VarChar(3)
-  isActive     Boolean            @default(true)
+enum AuditActorType {
+  SUPER_ADMIN
+  STORE_USER
+  SYSTEM
+}
 
-  products      Product[]
-  categories    Category[]
-  customers     Customer[]
-  orders        Order[]
-  deliveryZones DeliveryZone[]
-  users         StoreUser[]
+model store {
+  id               Int                @id @default(autoincrement())
+  name             String             @db.VarChar(150)
+  slug             String             @unique @db.VarChar(120)
+  description      String?            @db.Text
+  logoUrl          String?            @db.VarChar(500)
+  primaryColor     String?            @db.VarChar(20)
+  template         StorefrontTemplate @default(MODERN)
+  heroOfferPercent Int                @default(30)
+  currency         String             @default("LKR") @db.VarChar(3)
+  isActive         Boolean            @default(true)
+
+  products      product[]
+  categories    category[]
+  customers     customer[]
+  orders        order[]
+  deliveryZones delivery_zone[]
+  users         store_user[]
+  profile       store_profile?
+  settings      store_settings?
+  theme         store_theme?
+  heroSlides    hero_slide[]
+  auditLogs     audit_log[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -82,7 +94,155 @@ model Store {
   @@index([isActive])
 }
 
-model Category {
+model store_profile {
+  id Int @id @default(autoincrement())
+
+  storeId Int @unique
+
+  businessName String? @db.VarChar(200)
+  displayName  String? @db.VarChar(150)
+  tagline      String? @db.VarChar(300)
+  description  String? @db.Text
+
+  logoUrl    String? @db.VarChar(500)
+  faviconUrl String? @db.VarChar(500)
+
+  phone        String? @db.VarChar(40)
+  whatsapp     String? @db.VarChar(40)
+  email        String? @db.VarChar(191)
+  supportEmail String? @db.VarChar(191)
+
+  addressLine1 String? @db.VarChar(255)
+  addressLine2 String? @db.VarChar(255)
+  city         String? @db.VarChar(120)
+  district     String? @db.VarChar(120)
+  province     String? @db.VarChar(120)
+  postalCode   String? @db.VarChar(30)
+  country      String? @db.VarChar(100)
+
+  businessHours Json?
+
+  facebookUrl  String? @db.VarChar(500)
+  instagramUrl String? @db.VarChar(500)
+  tiktokUrl    String? @db.VarChar(500)
+  youtubeUrl   String? @db.VarChar(500)
+  websiteUrl   String? @db.VarChar(500)
+
+  aboutText      String? @db.Text
+  shippingPolicy String? @db.Text
+  returnPolicy   String? @db.Text
+  returnsPolicy  String? @db.Text
+  refundPolicy   String? @db.Text
+  privacyPolicy  String? @db.Text
+  termsText      String? @db.Text
+  faqText        String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+}
+
+model store_settings {
+  id Int @id @default(autoincrement())
+
+  storeId Int @unique
+
+  heroOfferPercent      Int     @default(30)
+  freeDeliveryThreshold Decimal @default(5000) @db.Decimal(12, 2)
+  deliveryCharge        Decimal @default(0) @db.Decimal(12, 2)
+  minimumOrder          Decimal @default(0) @db.Decimal(12, 2)
+  allowPickup           Boolean @default(false)
+  cashOnDelivery        Boolean @default(true)
+  bankTransfer          Boolean @default(true)
+  cardPayment           Boolean @default(false)
+  onlinePayment         Boolean @default(false)
+  islandwideDelivery    Boolean @default(true)
+
+  currency String @default("LKR") @db.VarChar(3)
+
+  deliveryEnabled Boolean @default(true)
+  pickupEnabled   Boolean @default(false)
+
+  freeDeliveryEnabled Boolean @default(false)
+
+  minimumOrderEnabled Boolean  @default(false)
+  minimumOrderAmount  Decimal? @db.Decimal(12, 2)
+
+  cashOnDeliveryEnabled Boolean @default(true)
+  bankTransferEnabled   Boolean @default(true)
+
+  taxEnabled Boolean  @default(false)
+  taxPercent Decimal? @db.Decimal(5, 2)
+
+  defaultDeliveryMethod DeliveryMethod @default(DELIVERY)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+}
+
+model store_theme {
+  id Int @id @default(autoincrement())
+
+  storeId Int @unique
+
+  template StorefrontTemplate @default(MODERN)
+
+  primaryColor   String @default("#d71920") @db.VarChar(20)
+  secondaryColor String @default("#111111") @db.VarChar(20)
+  accentColor    String @default("#f5c542") @db.VarChar(20)
+
+  backgroundColor String @default("#ffffff") @db.VarChar(20)
+  surfaceColor    String @default("#f5f5f5") @db.VarChar(20)
+  textColor       String @default("#111111") @db.VarChar(20)
+  mutedColor      String @default("#6b7280") @db.VarChar(20)
+  headerStyle     String @default("CLASSIC") @db.VarChar(40)
+  buttonStyle     String @default("ROUNDED") @db.VarChar(40)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+}
+
+model hero_slide {
+  id Int @id @default(autoincrement())
+
+  storeId Int
+
+  imageUrl String @db.VarChar(1000)
+
+  eyebrow     String? @db.VarChar(150)
+  title       String? @db.VarChar(200)
+  accentText  String? @db.VarChar(200)
+  description String? @db.VarChar(500)
+
+  buttonText String? @db.VarChar(100)
+  buttonUrl  String? @db.VarChar(500)
+
+  offerPercent Int?
+
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  store store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, sortOrder])
+  @@index([storeId, isActive])
+}
+
+model category {
   id          Int     @id @default(autoincrement())
   storeId     Int
   name        String  @db.VarChar(120)
@@ -91,11 +251,12 @@ model Category {
   imageUrl    String? @db.VarChar(500)
   isActive    Boolean @default(true)
 
-  store    Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children Category[] @relation("CategoryTree")
+  store    store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  parent   category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children category[] @relation("CategoryTree")
   parentId Int?
-  products Product[]
+
+  products product[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -105,10 +266,12 @@ model Category {
   @@index([parentId])
 }
 
-model Product {
-  id               Int           @id @default(autoincrement())
-  storeId          Int
-  categoryId       Int?
+model product {
+  id              Int  @id @default(autoincrement())
+  storeId         Int
+  categoryId      Int?
+  globalProductId Int?
+
   name             String        @db.VarChar(200)
   slug             String        @db.VarChar(220)
   sku              String?       @db.VarChar(100)
@@ -120,10 +283,12 @@ model Product {
   isAvailable      Boolean       @default(true)
   isFeatured       Boolean       @default(false)
 
-  store      Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  category   Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  images     ProductImage[]
-  orderItems OrderItem[]
+  store         store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category      category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  globalProduct global_product? @relation(fields: [globalProductId], references: [id], onDelete: SetNull)
+
+  images     product_image[]
+  orderItems order_item[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -133,9 +298,10 @@ model Product {
   @@index([storeId, status, isAvailable])
   @@index([storeId, categoryId])
   @@index([storeId, isFeatured])
+  @@index([globalProductId])
 }
 
-model ProductImage {
+model product_image {
   id        Int     @id @default(autoincrement())
   productId Int
   imageUrl  String  @db.VarChar(1000)
@@ -143,14 +309,31 @@ model ProductImage {
   sortOrder Int     @default(0)
   isPrimary Boolean @default(false)
 
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
   @@index([productId, sortOrder])
 }
 
-model Customer {
+model global_product {
+  id               Int     @id @default(autoincrement())
+  barcode          String  @unique @db.VarChar(50)
+  brand            String? @db.VarChar(150)
+  name             String  @db.VarChar(200)
+  shortDescription String? @db.VarChar(500)
+  description      String? @db.Text
+
+  products product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([brand])
+}
+
+model customer {
   id           Int            @id @default(autoincrement())
   storeId      Int
   name         String         @db.VarChar(150)
@@ -159,8 +342,8 @@ model Customer {
   passwordHash String?        @db.VarChar(255)
   status       CustomerStatus @default(ACTIVE)
 
-  store  Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  orders Order[]
+  store  store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orders order[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -170,7 +353,7 @@ model Customer {
   @@index([storeId, name])
 }
 
-model DeliveryZone {
+model delivery_zone {
   id          Int     @id @default(autoincrement())
   storeId     Int
   name        String  @db.VarChar(120)
@@ -178,8 +361,8 @@ model DeliveryZone {
   charge      Decimal @db.Decimal(12, 2)
   isActive    Boolean @default(true)
 
-  store  Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  orders Order[]
+  store  store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orders order[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -188,7 +371,7 @@ model DeliveryZone {
   @@index([storeId, isActive])
 }
 
-model Order {
+model order {
   id             Int            @id @default(autoincrement())
   storeId        Int
   customerId     Int?
@@ -216,10 +399,11 @@ model Order {
   bankTransferReference String? @db.VarChar(150)
   adminNotes            String? @db.Text
 
-  store        Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  customer     Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  deliveryZone DeliveryZone? @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
-  items        OrderItem[]
+  store        store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer     customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  deliveryZone delivery_zone? @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
+
+  items order_item[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -230,7 +414,7 @@ model Order {
   @@index([customerId])
 }
 
-model OrderItem {
+model order_item {
   id          Int     @id @default(autoincrement())
   orderId     Int
   productId   Int?
@@ -241,8 +425,8 @@ model OrderItem {
   quantity    Int
   lineTotal   Decimal @db.Decimal(12, 2)
 
-  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  order   order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
@@ -250,20 +434,97 @@ model OrderItem {
   @@index([productId])
 }
 
-model StoreUser {
-  id           Int           @id @default(autoincrement())
-  storeId      Int
-  name         String        @db.VarChar(150)
+model store_user {
+  id      Int    @id @default(autoincrement())
+  storeId Int
+  name    String @db.VarChar(150)
+
+  // Global username for store-admin login.
+  // Nullable temporarily so existing accounts can be migrated safely.
+  username String? @unique @db.VarChar(100)
+
   email        String        @db.VarChar(191)
   passwordHash String        @db.VarChar(255)
   role         StoreUserRole @default(ADMIN)
   isActive     Boolean       @default(true)
 
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  sessions  app_session[]
+  auditLogs audit_log[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([storeId, email])
   @@index([storeId, isActive])
+}
+
+model super_admin {
+  id           Int     @id @default(autoincrement())
+  name         String  @db.VarChar(150)
+  username     String  @unique @db.VarChar(100)
+  email        String? @unique @db.VarChar(191)
+  passwordHash String  @db.VarChar(255)
+  isActive     Boolean @default(true)
+
+  sessions  app_session[]
+  auditLogs audit_log[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+model app_session {
+  id           Int      @id @default(autoincrement())
+  tokenHash    String   @unique @db.VarChar(64)
+  storeUserId  Int?
+  superAdminId Int?
+  expiresAt    DateTime
+  lastSeenAt   DateTime @default(now())
+
+  storeUser  store_user?  @relation(fields: [storeUserId], references: [id], onDelete: Cascade)
+  superAdmin super_admin? @relation(fields: [superAdminId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([storeUserId, expiresAt])
+  @@index([superAdminId, expiresAt])
+}
+
+model audit_log {
+  id Int @id @default(autoincrement())
+
+  storeId Int?
+
+  actorType AuditActorType
+
+  storeUserId  Int?
+  superAdminId Int?
+
+  module      String  @db.VarChar(100)
+  action      String  @db.VarChar(100)
+  entity      String? @db.VarChar(100)
+  entityId    String? @db.VarChar(100)
+  description String  @db.Text
+
+  metadata Json?
+
+  ipAddress String? @db.VarChar(100)
+  userAgent String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  store      store?       @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  storeUser  store_user?  @relation(fields: [storeUserId], references: [id], onDelete: SetNull)
+  superAdmin super_admin? @relation(fields: [superAdminId], references: [id], onDelete: SetNull)
+
+  @@index([storeId, createdAt])
+  @@index([storeId, module, createdAt])
+  @@index([storeId, actorType, createdAt])
+  @@index([storeUserId, createdAt])
+  @@index([superAdminId, createdAt])
+  @@index([entity, entityId])
 }

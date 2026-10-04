@@ -8,9 +8,9 @@ import { getSession } from "@/lib/auth";
 export default async function AdminDashboardPage() {
   const session = await getSession();
 
-  if (!session || session.storeSlug !== STORE_CONFIG.slug) {
-    redirect("/admin/login");
-  }
+  if (!session) {
+  redirect("/admin/login");
+}
 
   const modules = [
     {

@@ -8,18 +8,12 @@ import ProductsList from "./ProductsList";
 export default async function ProductsPage() {
   const session = await getSession();
 
-  if (
-    !session ||
-    session.storeSlug !== STORE_CONFIG.slug
-  ) {
+  if (!session || session.storeSlug !== STORE_CONFIG.slug) {
     redirect("/admin/login");
   }
 
   return (
-    <AdminShell
-      userName={session.name}
-      role={session.role}
-    >
+    <AdminShell userName={session.name} role={session.role}>
       <ProductsList />
     </AdminShell>
   );
