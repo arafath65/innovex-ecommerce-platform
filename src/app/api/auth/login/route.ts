@@ -3,66 +3,52 @@ import bcrypt from "bcryptjs";
 
 import { prisma } from "@/lib/prisma";
 import { createStoreAdminSession } from "@/lib/auth";
-import {
-  getRequestAuditContext,
-  writeAuditLog,
-} from "@/lib/audit";
+import { getRequestAuditContext, writeAuditLog } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
+type LoginBody = {
+  storeSlug?: unknown;
+  username?: unknown;
+  email?: unknown;
+  identifier?: unknown;
+  password?: unknown;
+};
+
 export async function POST(request: Request) {
   try {
-    const body: unknown = await request.json();
+    const body = (await request.json()) as LoginBody;
 
-    const identifier =
-      body &&
-      typeof body === "object" &&
-      "username" in body
-        ? String(
-            (body as { username?: unknown })
-              .username ?? "",
-          )
-            .trim()
-            .toLowerCase()
-        : body &&
-            typeof body === "object" &&
-            "identifier" in body
-          ? String(
-              (
-                body as {
-                  identifier?: unknown;
-                }
-              ).identifier ?? "",
-            )
-              .trim()
-              .toLowerCase()
-          : "";
+    const storeSlug = String(body.storeSlug ?? "")
+      .trim()
+      .toLowerCase();
 
-    const password =
-      body &&
-      typeof body === "object" &&
-      "password" in body
-        ? String(
-            (body as { password?: unknown })
-              .password ?? "",
-          )
-        : "";
+    const identifier = String(
+      body.username ??
+        body.email ??
+        body.identifier ??
+        "",
+    )
+      .trim()
+      .toLowerCase();
 
-    console.log("=== STORE LOGIN DEBUG ===");
-    console.log("Identifier:", identifier);
-    console.log(
-      "Password received:",
-      password ? "YES" : "NO",
-    );
+    const password = String(body.password ?? "");
 
-    if (!identifier || !password) {
-      console.log("LOGIN FAILED: missing credentials");
-
+    if (!storeSlug) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Username and password are required.",
+          message: "Store information is required.",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (!identifier || !password) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Username/email and password are required.",
         },
         { status: 400 },
       );
@@ -70,6 +56,10 @@ export async function POST(request: Request) {
 
     const user = await prisma.store_user.findFirst({
       where: {
+        store: {
+          slug: storeSlug,
+          isActive: true,
+        },
         OR: [
           {
             username: identifier,
@@ -91,110 +81,38 @@ export async function POST(request: Request) {
       },
     });
 
-    console.log(
-      "USER FOUND:",
-      user
-        ? {
-            id: user.id,
-            storeId: user.storeId,
-            username: user.username,
-            email: user.email,
-            role: user.role,
-            userActive: user.isActive,
-            storeActive: user.store.isActive,
-          }
-        : null,
-    );
-
-    if (!user) {
-      console.log("LOGIN FAILED: user not found");
-
+    if (
+      !user ||
+      !user.isActive ||
+      !user.store.isActive
+    ) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Invalid username or password.",
+          message: "Invalid username/email or password.",
         },
         { status: 401 },
       );
     }
 
-    if (!user.isActive) {
-      console.log(
-        "LOGIN FAILED: user inactive",
-      );
-
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Invalid username or password.",
-        },
-        { status: 401 },
-      );
-    }
-
-    if (!user.store.isActive) {
-      console.log(
-        "LOGIN FAILED: store inactive",
-      );
-
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Invalid username or password.",
-        },
-        { status: 401 },
-      );
-    }
-
-    console.log(
-      "Hash prefix:",
-      user.passwordHash.substring(0, 4),
-    );
-
-    console.log(
-      "Hash length:",
-      user.passwordHash.length,
-    );
-
-    const passwordValid =
-      await bcrypt.compare(
-        password,
-        user.passwordHash,
-      );
-
-    console.log(
-      "PASSWORD MATCH:",
-      passwordValid,
+    const passwordValid = await bcrypt.compare(
+      password,
+      user.passwordHash,
     );
 
     if (!passwordValid) {
-      console.log(
-        "LOGIN FAILED: bcrypt mismatch",
-      );
-
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Invalid username or password.",
+          message: "Invalid username/email or password.",
         },
         { status: 401 },
       );
     }
 
-    console.log(
-      "PASSWORD VALID - creating session",
-    );
-
     await createStoreAdminSession(user.id);
 
-    console.log(
-      "SESSION CREATED FOR USER:",
-      user.id,
-    );
+    const auditContext = getRequestAuditContext(request);
 
     await writeAuditLog({
       storeId: user.store.id,
@@ -205,10 +123,8 @@ export async function POST(request: Request) {
       entity: "STORE_USER",
       entityId: user.id,
       description: `${user.name} signed in to ${user.store.name}.`,
-      ...getRequestAuditContext(request),
+      ...auditContext,
     });
-
-    console.log("LOGIN SUCCESS");
 
     return NextResponse.json({
       success: true,
@@ -224,16 +140,12 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error(
-      "STORE LOGIN ERROR:",
-      error,
-    );
+    console.error("Store admin login error:", error);
 
     return NextResponse.json(
       {
         success: false,
-        message:
-          "Unable to process login.",
+        message: "Unable to process login.",
       },
       { status: 500 },
     );

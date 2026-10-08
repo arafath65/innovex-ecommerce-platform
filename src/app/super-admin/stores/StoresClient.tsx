@@ -142,13 +142,19 @@ export default function StoresClient() {
     event.currentTarget.form?.requestSubmit();
   }
 
-  function setFieldRef(index: number) {
-    return (
-      element: HTMLInputElement | HTMLSelectElement | null,
-    ) => {
-      fieldRefs.current[index] = element;
-    };
-  }
+  function setFieldRef(
+  index: number,
+) {
+  return (
+    element: HTMLInputElement | HTMLSelectElement | null,
+  ) => {
+    // Callback refs are invoked by React during commit.
+    // The ref value must be updated here so the existing
+    // keyboard/focus behavior continues to work.
+    // eslint-disable-next-line react-hooks/refs
+    fieldRefs.current[index] = element;
+  };
+}
 
   function validateCreateForm() {
     if (form.password.length < 8) {

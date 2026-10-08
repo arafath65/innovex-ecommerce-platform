@@ -1,3 +1,4 @@
+
 import { redirect } from "next/navigation";
 
 import { AdminShell } from "@/components/admin/AdminShell";
@@ -7,12 +8,19 @@ import StoreProfileClient from "./StoreProfileClient";
 export default async function StoreProfilePage() {
   const session = await getSession();
 
-  if (!session || (session.role !== "OWNER" && session.role !== "ADMIN")) {
+  if (
+    !session ||
+    (session.role !== "OWNER" &&
+      session.role !== "ADMIN")
+  ) {
     redirect("/admin/login");
   }
 
   return (
-    <AdminShell userName={session.name} role={session.role}>
+    <AdminShell
+      userName={session.name}
+      role={session.role}
+    >
       <StoreProfileClient />
     </AdminShell>
   );

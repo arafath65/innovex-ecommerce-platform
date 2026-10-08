@@ -1537,9 +1537,8 @@ export default function ProductsList() {
           </h1>
 
           <p className="mt-1 text-[12px] text-black/43">
-            Manage your Oscar Trading
-            catalog, pricing and images.
-          </p>
+  Manage your store catalog, pricing and images.
+</p>
         </div>
 
         <button

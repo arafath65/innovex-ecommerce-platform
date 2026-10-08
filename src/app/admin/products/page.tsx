@@ -1,19 +1,23 @@
 import { redirect } from "next/navigation";
 
 import { AdminShell } from "@/components/admin/AdminShell";
-import { STORE_CONFIG } from "@/config/store";
 import { getSession } from "@/lib/auth";
 import ProductsList from "./ProductsList";
 
 export default async function ProductsPage() {
   const session = await getSession();
 
-  if (!session || session.storeSlug !== STORE_CONFIG.slug) {
+  // Store Admin access is based on the authenticated session.
+  // Do NOT compare against STORE_CONFIG or a hardcoded store slug.
+  if (!session) {
     redirect("/admin/login");
   }
 
   return (
-    <AdminShell userName={session.name} role={session.role}>
+    <AdminShell
+      userName={session.name}
+      role={session.role}
+    >
       <ProductsList />
     </AdminShell>
   );

@@ -528,8 +528,8 @@ export default function CategoriesList() {
             </h1>
 
             <p className="mt-1 text-[12px] text-black/43">
-              Manage your Oscar Trading category structure and subcategories.
-            </p>
+  Manage your store category structure and subcategories.
+</p>
           </div>
 
           <button
