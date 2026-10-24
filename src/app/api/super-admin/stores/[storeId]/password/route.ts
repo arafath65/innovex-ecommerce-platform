@@ -1,3 +1,4 @@
+
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
@@ -7,22 +8,41 @@ import { getRequestAuditContext, writeAuditLog } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
-type Params = { params: Promise<{ storeId: string }> };
+type Params = {
+  params: Promise<{ storeId: string }>;
+};
 
 export async function POST(request: Request, { params }: Params) {
   try {
     const auth = await requireSuperAdmin();
+
     if ("error" in auth) {
-      return NextResponse.json({ error: auth.error }, { status: auth.status });
+      return NextResponse.json(
+        { error: auth.error },
+        { status: auth.status },
+      );
     }
 
     const id = Number((await params).storeId);
+
     if (!Number.isSafeInteger(id) || id <= 0) {
-      return NextResponse.json({ error: "Invalid store ID." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid store ID." },
+        { status: 400 },
+      );
     }
 
     const body = (await request.json()) as Record<string, unknown>;
-    const newPassword = String(body.newPassword ?? "");
+    const userId = Number(body.userId);
+    const newPassword =
+      typeof body.newPassword === "string" ? body.newPassword : "";
+
+    if (!Number.isSafeInteger(userId) || userId <= 0) {
+      return NextResponse.json(
+        { error: "Invalid administrator ID." },
+        { status: 400 },
+      );
+    }
 
     if (newPassword.length < 8) {
       return NextResponse.json(
@@ -33,11 +53,10 @@ export async function POST(request: Request, { params }: Params) {
 
     const user = await prisma.store_user.findFirst({
       where: {
+        id: userId,
         storeId: id,
-        isActive: true,
         role: { in: ["OWNER", "ADMIN"] },
       },
-      orderBy: [{ role: "asc" }, { id: "asc" }],
       select: {
         id: true,
         name: true,
@@ -47,18 +66,22 @@ export async function POST(request: Request, { params }: Params) {
 
     if (!user) {
       return NextResponse.json(
-        { error: "No active store administrator found." },
+        { error: "Store administrator not found." },
         { status: 404 },
       );
     }
 
-    await prisma.store_user.update({
-      where: { id: user.id },
-      data: { passwordHash: await bcrypt.hash(newPassword, 12) },
-    });
+    const passwordHash = await bcrypt.hash(newPassword, 12);
 
-    await prisma.app_session.deleteMany({
-      where: { storeUserId: user.id },
+    await prisma.$transaction(async (tx) => {
+      await tx.store_user.update({
+        where: { id: user.id },
+        data: { passwordHash },
+      });
+
+      await tx.app_session.deleteMany({
+        where: { storeUserId: user.id },
+      });
     });
 
     await writeAuditLog({
@@ -80,6 +103,10 @@ export async function POST(request: Request, { params }: Params) {
     });
   } catch (error) {
     console.error("POST store password reset error:", error);
-    return NextResponse.json({ error: "Failed to reset store password." }, { status: 500 });
+
+    return NextResponse.json(
+      { error: "Failed to reset store password." },
+      { status: 500 },
+    );
   }
 }

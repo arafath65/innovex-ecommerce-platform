@@ -70,17 +70,25 @@ export async function GET(request: Request) {
             users: true,
           },
         },
-        users: {
-          orderBy: { createdAt: "asc" },
-          take: 1,
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            email: true,
-            isActive: true,
-          },
-        },
+        
+users: {
+  where: {
+    role: "OWNER",
+  },
+  orderBy: {
+    createdAt: "asc",
+  },
+  take: 1,
+  select: {
+    id: true,
+    name: true,
+    username: true,
+    email: true,
+    role: true,
+    isActive: true,
+  },
+},
+
       },
       orderBy: { createdAt: "desc" },
     });
