@@ -272,10 +272,10 @@ model product {
   categoryId      Int?
   globalProductId Int?
 
-  name             String        @db.VarChar(200)
+  name             String        @db.VarChar(300)
   slug             String        @db.VarChar(220)
   sku              String?       @db.VarChar(100)
-  shortDescription String?       @db.VarChar(500)
+  shortDescription String?       @db.Text
   description      String?       @db.Text
   price            Decimal       @db.Decimal(12, 2)
   compareAtPrice   Decimal?      @db.Decimal(12, 2)
@@ -320,8 +320,8 @@ model global_product {
   id               Int     @id @default(autoincrement())
   barcode          String  @unique @db.VarChar(50)
   brand            String? @db.VarChar(150)
-  name             String  @db.VarChar(200)
-  shortDescription String? @db.VarChar(500)
+  name             String  @db.VarChar(300)
+  shortDescription String? @db.Text
   description      String? @db.Text
 
   products product[]

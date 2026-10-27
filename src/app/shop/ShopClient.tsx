@@ -182,18 +182,12 @@ function categoryHref(
   slug: string,
   search: string,
 ) {
-  const params =
-    new URLSearchParams();
+  const params = new URLSearchParams();
 
-  params.set("store", storeSlug);
-
-  if (search) {
-    params.set("search", search);
-  }
-
+  if (search) params.set("search", search);
   params.set("category", slug);
 
-  return `/shop?${params.toString()}`;
+  return `/${encodeURIComponent(storeSlug)}/shop?${params.toString()}`;
 }
 
 function shopHref(
@@ -201,31 +195,21 @@ function shopHref(
   search = "",
   category = "",
 ) {
-  const params =
-    new URLSearchParams();
+  const params = new URLSearchParams();
 
-  params.set("store", storeSlug);
+  if (search) params.set("search", search);
+  if (category) params.set("category", category);
 
-  if (search) {
-    params.set("search", search);
-  }
+  const query = params.toString();
 
-  if (category) {
-    params.set("category", category);
-  }
-
-  return `/shop?${params.toString()}`;
+  return `/${encodeURIComponent(storeSlug)}/shop${query ? `?${query}` : ""}`;
 }
 
 function productHref(
   storeSlug: string,
   productSlug: string,
 ) {
-  return `/product/${encodeURIComponent(
-    productSlug,
-  )}?store=${encodeURIComponent(
-    storeSlug,
-  )}`;
+  return `/${encodeURIComponent(storeSlug)}/product/${encodeURIComponent(productSlug)}`;
 }
 
 export default function ShopClient({

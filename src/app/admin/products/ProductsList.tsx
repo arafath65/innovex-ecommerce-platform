@@ -1150,24 +1150,6 @@ export default function ProductsList() {
   }
 }
 
-  function removeSelectedImage(
-    index: number,
-  ) {
-    setSelectedImages((current) => {
-      const item = current[index];
-
-      if (item) {
-        URL.revokeObjectURL(
-          item.preview,
-        );
-      }
-
-      return current.filter(
-        (_, i) => i !== index,
-      );
-    });
-  }
-
   async function uploadImages(
     productId: number,
     files: File[],
@@ -2867,10 +2849,61 @@ export default function ProductsList() {
   ) : null}
 
   {selectedImages.length > 0 ? (
-    <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-5">
-      {/* image previews */}
-    </div>
-  ) : null}
+  <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-5">
+    {selectedImages.map((image, index) => (
+      <div
+        key={`${image.file.name}-${index}`}
+        className="overflow-hidden rounded-xl border border-black/7 bg-white"
+      >
+        {/* Image preview */}
+        <div className="relative aspect-square bg-[#f3f3f0]">
+          <Image
+            src={image.preview}
+            alt={image.file.name}
+            fill
+            sizes="(max-width: 640px) 50vw, 20vw"
+            className="object-contain p-2"
+            unoptimized
+          />
+
+          {/* Remove image */}
+          <button
+            type="button"
+            onClick={() => {
+              URL.revokeObjectURL(image.preview);
+
+              setSelectedImages((current) =>
+                current.filter(
+                  (_, imageIndex) => imageIndex !== index,
+                ),
+              );
+            }}
+            disabled={saving || compressingImages}
+            aria-label={`Remove ${image.file.name}`}
+            title="Remove image"
+            className="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full bg-white/95 text-black/55 shadow-sm transition hover:bg-[#d71920] hover:text-white disabled:opacity-40"
+          >
+            <X size={13} />
+          </button>
+        </div>
+
+        {/* Filename and file size */}
+        <div className="border-t border-black/5 px-2 py-2">
+          <p
+            className="truncate text-[9px] font-medium text-black/65"
+            title={image.file.name}
+          >
+            {image.file.name}
+          </p>
+
+          <p className="mt-1 text-[9px] text-black/35">
+            {(image.file.size / (1024 * 1024)).toFixed(2)} MB
+          </p>
+        </div>
+      </div>
+    ))}
+  </div>
+) : null}
 </div>
               </div>
 
