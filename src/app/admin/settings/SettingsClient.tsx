@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, RefreshCw, Save, Settings2 } from "lucide-react";
 
@@ -12,49 +12,47 @@ export default function SettingsClient() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  async function loadSettings() {
-    setLoading(true);
-    setError("");
+  const loadSettings = useCallback(async () => {
+  setLoading(true);
+  setError("");
 
-    try {
-      const response = await fetch("/api/admin/settings", {
-        cache: "no-store",
-      });
+  try {
+    const response = await fetch("/api/admin/settings", {
+      cache: "no-store",
+    });
 
-      if (response.status === 401) {
-        router.push("/admin/login");
-        return;
-      }
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(
-          data.error || "Failed to load settings.",
-        );
-      }
-
-      setOfferPercent(
-        String(data.settings?.heroOfferPercent ?? 30),
-      );
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to load settings.",
-      );
-    } finally {
-      setLoading(false);
+    if (response.status === 401) {
+      router.push("/admin/login");
+      return;
     }
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Failed to load settings.");
+    }
+
+    setOfferPercent(
+      String(data.settings?.heroOfferPercent ?? 30),
+    );
+  } catch (err) {
+    setError(
+      err instanceof Error
+        ? err.message
+        : "Failed to load settings.",
+    );
+  } finally {
+    setLoading(false);
   }
+}, [router]);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void loadSettings();
-    }, 0);
+useEffect(() => {
+  const timer = window.setTimeout(() => {
+    void loadSettings();
+  }, 0);
 
-    return () => window.clearTimeout(timer);
-  }, []);
+  return () => window.clearTimeout(timer);
+}, [loadSettings]);
 
   async function saveSettings() {
     const value = Number(offerPercent);

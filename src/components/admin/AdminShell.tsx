@@ -1,6 +1,7 @@
 
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -567,12 +568,15 @@ export function AdminShell({
         <div className="flex shrink-0 items-center gap-3 px-3 pb-6">
           {storeLogo ? (
             <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white">
-              <img
-                src={storeLogo}
-                alt={storeDisplayName}
-                className="h-full w-full object-contain p-1.5"
-              />
-            </div>
+  <Image
+    src={storeLogo}
+    alt={storeDisplayName}
+    width={40}
+    height={40}
+    unoptimized
+    className="h-full w-full object-contain p-1.5"
+  />
+</div>
           ) : (
             <div
               className="grid size-10 shrink-0 place-items-center rounded-2xl text-sm font-bold text-white shadow-[0_10px_28px_rgba(0,0,0,0.28)]"

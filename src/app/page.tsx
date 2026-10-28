@@ -41,15 +41,21 @@ export default async function HomePage() {
           phone: true,
           whatsapp: true,
           email: true,
+          facebookUrl: true,
+instagramUrl: true,
+tiktokUrl: true,
           aboutText: true,
         },
       },
 
       settings: {
-        select: {
-          currency: true,
-        },
-      },
+  select: {
+    currency: true,
+    announcementMessage1: true,
+    announcementMessage2: true,
+    announcementMessage3: true,
+  },
+},
 
       theme: {
         select: {
@@ -100,6 +106,12 @@ export default async function HomePage() {
       </main>
     );
   }
+
+  const announcementMessages = [
+  store.settings?.announcementMessage1,
+  store.settings?.announcementMessage2,
+  store.settings?.announcementMessage3,
+].filter((message): message is string => Boolean(message?.trim()));
 
   const [categories, rawProducts] = await Promise.all([
     prisma.category.findMany({
@@ -191,6 +203,7 @@ export default async function HomePage() {
   return (
     <HomeClient
       store={{
+        slug: store.slug,
         name: store.name,
         displayName:
           store.profile?.displayName?.trim() ||
@@ -208,7 +221,10 @@ export default async function HomePage() {
         phone: store.profile?.phone ?? null,
         whatsapp: store.profile?.whatsapp ?? null,
         email: store.profile?.email ?? null,
-        currency: store.currency,
+        facebookUrl: store.profile?.facebookUrl ?? null,
+instagramUrl: store.profile?.instagramUrl ?? null,
+tiktokUrl: store.profile?.tiktokUrl ?? null,
+        currency: store.settings?.currency || store.currency || "LKR",
         primaryColor:
           store.theme?.primaryColor ||
           store.primaryColor ||
@@ -221,6 +237,7 @@ export default async function HomePage() {
         textColor: store.theme?.textColor || "#292B25",
         mutedColor: store.theme?.mutedColor || "#77776D",
         heroOfferPercent: store.heroOfferPercent,
+        announcementMessages,
       }}
       categories={categoriesWithFallback}
       products={products}

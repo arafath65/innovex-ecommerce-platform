@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 type Product = {
   id: number;
@@ -851,9 +852,12 @@ function handleImageSelection(files: FileList | null) {
           {/* Thumbnail */}
           <div className="flex h-28 items-center justify-center bg-gray-50 p-2">
             {imagePreviews[index] && (
-              <img
+              <Image
                 src={imagePreviews[index]}
                 alt={file.name}
+                width={1200}
+  height={1200}
+  unoptimized
                 className="h-full w-full rounded object-contain"
               />
             )}
@@ -1061,15 +1065,15 @@ function handleImageSelection(files: FileList | null) {
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
                             {primaryImage ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={primaryImage.imageUrl}
-                                alt={
-                                  primaryImage.altText ||
-                                  product.name
-                                }
-                                className="h-12 w-12 rounded-lg border border-gray-200 object-cover"
-                              />
+                              
+                              <Image
+  src={primaryImage.imageUrl}
+  alt={primaryImage.altText || product.name}
+  width={1200}
+  height={1200}
+  unoptimized
+  className="h-12 w-12 rounded-lg border border-gray-200 object-cover"
+/>
                             ) : (
                               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-100 text-xl">
                                 📦

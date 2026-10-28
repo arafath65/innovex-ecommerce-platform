@@ -161,6 +161,10 @@ model store_settings {
   onlinePayment         Boolean @default(false)
   islandwideDelivery    Boolean @default(true)
 
+  announcementMessage1 String @default("FREE DELIVERY ISLANDWIDE") @db.VarChar(180)
+announcementMessage2 String @default("QUALITY KITCHEN ESSENTIALS") @db.VarChar(180)
+announcementMessage3 String @default("A BETTER EVERYDAY KITCHEN") @db.VarChar(180)
+
   currency String @default("LKR") @db.VarChar(3)
 
   deliveryEnabled Boolean @default(true)

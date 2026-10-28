@@ -156,6 +156,24 @@ export async function PATCH(request: Request) {
       );
     }
 
+        const announcementMessage1 = String(
+      settings.announcementMessage1 ?? "FREE DELIVERY ISLANDWIDE",
+    )
+      .trim()
+      .slice(0, 180);
+
+    const announcementMessage2 = String(
+      settings.announcementMessage2 ?? "QUALITY KITCHEN ESSENTIALS",
+    )
+      .trim()
+      .slice(0, 180);
+
+    const announcementMessage3 = String(
+      settings.announcementMessage3 ?? "A BETTER EVERYDAY KITCHEN",
+    )
+      .trim()
+      .slice(0, 180);
+
     const result = await prisma.$transaction(async (tx) => {
       const updatedStore = await tx.store.update({
         where: { id: auth.store.id },
@@ -213,6 +231,9 @@ export async function PATCH(request: Request) {
         where: { storeId: auth.store.id },
         create: {
           storeId: auth.store.id,
+          announcementMessage1,
+          announcementMessage2,
+          announcementMessage3,
           heroOfferPercent,
           freeDeliveryThreshold,
           deliveryCharge,
@@ -225,6 +246,9 @@ export async function PATCH(request: Request) {
           islandwideDelivery: settings.islandwideDelivery === undefined ? true : Boolean(settings.islandwideDelivery),
         },
         update: {
+          announcementMessage1,
+          announcementMessage2,
+          announcementMessage3,
           heroOfferPercent,
           freeDeliveryThreshold,
           deliveryCharge,

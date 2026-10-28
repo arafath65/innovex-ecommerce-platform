@@ -44,6 +44,9 @@ export default async function HomePage({ params }: PageProps) {
           phone: true,
           whatsapp: true,
           email: true,
+          facebookUrl: true,
+instagramUrl: true,
+tiktokUrl: true,
           aboutText: true,
         },
       },
@@ -103,6 +106,25 @@ export default async function HomePage({ params }: PageProps) {
       </main>
     );
   }
+
+  const announcementSettings = await prisma.store_settings.findUnique({
+  where: {
+    storeId: store.id,
+  },
+  select: {
+    announcementMessage1: true,
+    announcementMessage2: true,
+    announcementMessage3: true,
+  },
+});
+
+const announcementMessages = [
+  announcementSettings?.announcementMessage1,
+  announcementSettings?.announcementMessage2,
+  announcementSettings?.announcementMessage3,
+].filter(
+  (message): message is string => Boolean(message?.trim()),
+);
 
   const [categories, rawProducts] = await Promise.all([
     prisma.category.findMany({
@@ -194,6 +216,7 @@ export default async function HomePage({ params }: PageProps) {
   return (
     <HomeClient
       store={{
+        slug: store.slug,
         name: store.name,
         displayName:
           store.profile?.displayName?.trim() ||
@@ -211,7 +234,10 @@ export default async function HomePage({ params }: PageProps) {
         phone: store.profile?.phone ?? null,
         whatsapp: store.profile?.whatsapp ?? null,
         email: store.profile?.email ?? null,
-        currency: store.currency,
+        facebookUrl: store.profile?.facebookUrl ?? null,
+instagramUrl: store.profile?.instagramUrl ?? null,
+tiktokUrl: store.profile?.tiktokUrl ?? null,
+        currency: store.settings?.currency || store.currency || "LKR",
         primaryColor:
           store.theme?.primaryColor ||
           store.primaryColor ||
@@ -224,10 +250,14 @@ export default async function HomePage({ params }: PageProps) {
         textColor: store.theme?.textColor || "#292B25",
         mutedColor: store.theme?.mutedColor || "#77776D",
         heroOfferPercent: store.heroOfferPercent,
+        announcementMessages,
       }}
+      
       categories={categoriesWithFallback}
       products={products}
       heroSlides={store.heroSlides}
     />
+
+    
   );
 }

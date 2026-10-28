@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 import { Check, ImagePlus, Loader2, RefreshCw, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 type HeroSlide = {
   id: number;
@@ -48,6 +49,9 @@ type Profile = {
 };
 
 type Settings = {
+  announcementMessage1: string;
+  announcementMessage2: string;
+  announcementMessage3: string;
   heroOfferPercent: number;
   freeDeliveryThreshold: string;
   deliveryCharge: string;
@@ -102,6 +106,9 @@ const emptyProfile: Profile = {
 };
 
 const defaultSettings: Settings = {
+  announcementMessage1: "FREE DELIVERY ISLANDWIDE",
+  announcementMessage2: "QUALITY KITCHEN ESSENTIALS",
+  announcementMessage3: "A BETTER EVERYDAY KITCHEN",
   heroOfferPercent: 30,
   freeDeliveryThreshold: "5000",
   deliveryCharge: "0",
@@ -181,6 +188,18 @@ export default function StoreProfileClient() {
       setSettings({
         ...defaultSettings,
         ...nextSettings,
+        announcementMessage1: String(
+          nextSettings.announcementMessage1 ??
+            defaultSettings.announcementMessage1,
+        ),
+        announcementMessage2: String(
+          nextSettings.announcementMessage2 ??
+            defaultSettings.announcementMessage2,
+        ),
+        announcementMessage3: String(
+          nextSettings.announcementMessage3 ??
+            defaultSettings.announcementMessage3,
+        ),
         heroOfferPercent: Number(nextSettings.heroOfferPercent ?? 30),
         freeDeliveryThreshold: numberAsString(nextSettings.freeDeliveryThreshold),
         deliveryCharge: numberAsString(nextSettings.deliveryCharge),
@@ -381,7 +400,20 @@ export default function StoreProfileClient() {
 
           <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-black/7 bg-[#faf9f6] p-4 sm:flex-row sm:items-center">
             <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-2xl border border-black/8 bg-white">
-              {logoPreview ? <img src={logoPreview} alt="Store logo" className="h-full w-full object-contain p-2" /> : <span className="text-[9px] font-black uppercase text-black/20">No logo</span>}
+              {logoPreview ? (
+  <Image
+    src={logoPreview}
+    alt="Store logo"
+    width={80}
+    height={80}
+    unoptimized
+    className="h-full w-full object-contain p-2"
+  />
+) : (
+  <span className="text-[9px] font-black uppercase text-black/20">
+    No logo
+  </span>
+)}
             </div>
             <div className="flex-1">
               <p className="text-[10px] font-black uppercase tracking-[.12em]">Store logo</p>
@@ -473,7 +505,14 @@ export default function StoreProfileClient() {
           {heroSlides.map((slide) => (
             <div key={slide.id} className="overflow-hidden rounded-2xl border border-black/8 bg-[#faf9f6]">
               <div className="aspect-[16/8] overflow-hidden bg-black/5">
-                <img src={slide.imageUrl} alt={slide.title || "Hero slide"} className="h-full w-full object-cover" />
+                <Image
+  src={slide.imageUrl}
+  alt={slide.title || "Hero slide"}
+  width={800}
+  height={400}
+  unoptimized
+  className="h-full w-full object-cover"
+/>
               </div>
               <div className="space-y-3 p-4">
                 <Field label="Eyebrow" value={slide.eyebrow ?? ""} onChange={(value) => setHeroSlides((items) => items.map((item) => item.id === slide.id ? { ...item, eyebrow: value } : item))} />
@@ -529,6 +568,56 @@ export default function StoreProfileClient() {
           ))}
         </div>
       </section>
+
+      <section className="mt-6 rounded-[24px] border border-black/7 bg-white p-5 shadow-[0_12px_35px_rgba(17,17,17,.05)] sm:p-7">
+  <p className="text-[9px] font-black uppercase tracking-[.18em] text-[#d71920]">
+    Storefront
+  </p>
+
+  <h2 className="mt-2 text-xl font-black">
+    Announcement bar
+  </h2>
+
+  <p className="mt-2 max-w-2xl text-xs leading-5 text-black/50">
+    Add three short messages for the top of your storefront. Customers
+    will see one message at a time as the messages rotate automatically.
+  </p>
+
+  <div className="mt-5 grid gap-4 md:grid-cols-3">
+    <Field
+      label="Announcement 1"
+      value={settings.announcementMessage1}
+      onChange={(value) =>
+        setSettings((current) => ({
+          ...current,
+          announcementMessage1: value,
+        }))
+      }
+    />
+
+    <Field
+      label="Announcement 2"
+      value={settings.announcementMessage2}
+      onChange={(value) =>
+        setSettings((current) => ({
+          ...current,
+          announcementMessage2: value,
+        }))
+      }
+    />
+
+    <Field
+      label="Announcement 3"
+      value={settings.announcementMessage3}
+      onChange={(value) =>
+        setSettings((current) => ({
+          ...current,
+          announcementMessage3: value,
+        }))
+      }
+    />
+  </div>
+</section>
 
       <div className="sticky bottom-4 z-20 mt-6 flex justify-end">
         <button type="button" onClick={() => void save()} disabled={saving} className="inline-flex items-center gap-2 rounded-2xl bg-[#d71920] px-6 py-3.5 text-[10px] font-black uppercase tracking-[.12em] text-white shadow-[0_14px_30px_rgba(215,25,32,.2)] hover:bg-[#111111] disabled:opacity-50">

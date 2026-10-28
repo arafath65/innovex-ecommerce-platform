@@ -9,6 +9,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
+import Image from "next/image";
 
 type StoreContext = {
   id: number;
@@ -338,11 +339,14 @@ export default function AdminLoginPage() {
                   }}
                 >
                   {store?.logoUrl ? (
-                    <img
-                      src={store.logoUrl}
-                      alt={brandName}
-                      className="h-full w-full object-contain p-3"
-                    />
+                    <Image
+  src={store.logoUrl}
+  alt={brandName}
+  width={76}
+  height={76}
+  unoptimized
+  className="h-full w-full object-contain p-3"
+/>
                   ) : (
                     <div
                       className="grid size-full place-items-center text-[28px] font-black text-white"

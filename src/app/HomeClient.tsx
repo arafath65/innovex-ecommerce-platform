@@ -1,5 +1,5 @@
 import HomeHeaderHero from "./HomeHeaderHero";
-
+import Image from "next/image";
 import Link from "next/link";
 
 import {
@@ -114,6 +114,11 @@ type HeroSlide = {
 
 type StoreInfo = {
 
+  slug: string;
+  facebookUrl: string | null;
+instagramUrl: string | null;
+tiktokUrl: string | null;
+
   name: string;
 
   displayName: string;
@@ -149,6 +154,8 @@ type StoreInfo = {
   mutedColor: string;
 
   heroOfferPercent: number;
+
+  announcementMessages?: string[];
 
 };
 
@@ -266,53 +273,37 @@ function categoryLink(slug: string) {
 }
 
 function StoreImage({
-
   src,
-
   alt,
-
   className,
-
 }: {
-
   src: string;
-
   alt: string;
-
   className: string;
-
 }) {
-
   if (!src) {
-
     return (
-
       <div
-
         className={`grid place-items-center ${className}`}
-
         aria-label="Product image unavailable"
-
       >
-
         <ShoppingBag className="h-8 w-8 text-black/20" />
-
       </div>
-
     );
-
   }
 
   return (
-
-    // Product images are uploaded and managed through the store admin.
-
-    // eslint-disable-next-line @next/next/no-img-element
-
-    <img src={src} alt={alt} className={className} loading="lazy" />
-
+    <Image
+      src={src}
+      alt={alt}
+      width={1200}
+      height={1200}
+      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+      unoptimized={/^(https?:\/\/|data:|blob:)/i.test(src)}
+      className={className}
+      loading="lazy"
+    />
   );
-
 }
 
 function ProductCard({
@@ -482,12 +473,8 @@ export default function HomeClient({
 }: HomeClientProps) {
 
   const primaryColor = store.primaryColor;
-
-  const accentColor = store.accentColor;
-
-  const surfaceColor = store.surfaceColor;
-
-  const mutedColor = store.mutedColor;
+const surfaceColor = store.surfaceColor;
+const mutedColor = store.mutedColor;
 
   const fallbackHeroImage = products[0]
 
