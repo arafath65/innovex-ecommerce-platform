@@ -1,0 +1,91 @@
+.card {
+  isolation: isolate;
+  transform: translateZ(0);
+  animation: oscarCardFloat 7s ease-in-out infinite;
+  animation-delay: var(--motion-delay, 0s);
+  box-shadow: 0 15px 38px rgba(25, 22, 18, 0.08);
+}
+
+.image {
+  object-fit: cover;
+  transform-origin: center;
+  animation: oscarImageDrift 13s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.shine {
+  position: absolute;
+  top: -15%;
+  bottom: -15%;
+  left: -35%;
+  z-index: 2;
+  width: 42%;
+  pointer-events: none;
+
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.07) 30%,
+    rgba(255, 255, 255, 0.32) 50%,
+    rgba(255, 255, 255, 0.07) 70%,
+    transparent 100%
+  );
+
+  transform: translateX(-170%) skewX(-18deg);
+  animation: oscarShineSweep 8.5s ease-in-out infinite;
+  animation-delay: var(--motion-delay, 0s);
+}
+
+.card:hover .image {
+  filter: saturate(1.08) brightness(1.04);
+}
+
+.card:focus-visible {
+  outline: 3px solid var(--card-accent, #d71920);
+  outline-offset: 4px;
+}
+
+@keyframes oscarCardFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(0, -5px, 0);
+  }
+}
+
+@keyframes oscarImageDrift {
+  0% {
+    transform: scale(1.03) translate3d(0, 0, 0);
+  }
+
+  100% {
+    transform: scale(1.12) translate3d(-1.2%, -1%, 0);
+  }
+}
+
+@keyframes oscarShineSweep {
+  0%,
+  68%,
+  100% {
+    transform: translateX(-170%) skewX(-18deg);
+  }
+
+  84% {
+    transform: translateX(340%) skewX(-18deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .image,
+  .shine {
+    animation: none !important;
+  }
+
+  .image {
+    transform: none;
+  }
+}

@@ -13,6 +13,14 @@ enum StorefrontTemplate {
   MINIMAL
 }
 
+enum ProductAttributeType {
+  TEXT
+  NUMBER
+  BOOLEAN
+  SELECT
+  MULTI_SELECT
+}
+
 enum ProductStatus {
   DRAFT
   PUBLISHED
@@ -76,17 +84,19 @@ model store {
   currency         String             @default("LKR") @db.VarChar(3)
   isActive         Boolean            @default(true)
 
-  products      product[]
-  categories    category[]
-  customers     customer[]
-  orders        order[]
-  deliveryZones delivery_zone[]
-  users         store_user[]
-  profile       store_profile?
-  settings      store_settings?
-  theme         store_theme?
-  heroSlides    hero_slide[]
-  auditLogs     audit_log[]
+  products          product[]
+  variants          product_variant[]
+  productAttributes store_product_attribute[]
+  categories        category[]
+  customers         customer[]
+  orders            order[]
+  deliveryZones     delivery_zone[]
+  users             store_user[]
+  profile           store_profile?
+  settings          store_settings?
+  theme             store_theme?
+  heroSlides        hero_slide[]
+  auditLogs         audit_log[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -162,8 +172,8 @@ model store_settings {
   islandwideDelivery    Boolean @default(true)
 
   announcementMessage1 String @default("FREE DELIVERY ISLANDWIDE") @db.VarChar(180)
-announcementMessage2 String @default("QUALITY KITCHEN ESSENTIALS") @db.VarChar(180)
-announcementMessage3 String @default("A BETTER EVERYDAY KITCHEN") @db.VarChar(180)
+  announcementMessage2 String @default("QUALITY KITCHEN ESSENTIALS") @db.VarChar(180)
+  announcementMessage3 String @default("A BETTER EVERYDAY KITCHEN") @db.VarChar(180)
 
   currency String @default("LKR") @db.VarChar(3)
 
@@ -291,8 +301,11 @@ model product {
   category      category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   globalProduct global_product? @relation(fields: [globalProductId], references: [id], onDelete: SetNull)
 
-  images     product_image[]
-  orderItems order_item[]
+  images          product_image[]
+  orderItems      order_item[]
+  options         product_option[]
+  variants        product_variant[]
+  attributeValues product_attribute_value[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -303,6 +316,145 @@ model product {
   @@index([storeId, categoryId])
   @@index([storeId, isFeatured])
   @@index([globalProductId])
+}
+
+// Store-specific reusable custom product fields, such as Skin Type or Finish.
+// SELECT and MULTI_SELECT options are stored as a JSON array in `options`.
+model store_product_attribute {
+  id           Int                  @id @default(autoincrement())
+  storeId      Int
+  name         String               @db.VarChar(100)
+  label        String               @db.VarChar(150)
+  type         ProductAttributeType @default(TEXT)
+  options      Json?
+  isRequired   Boolean              @default(false)
+  isFilterable Boolean              @default(false)
+  isActive     Boolean              @default(true)
+  sortOrder    Int                  @default(0)
+
+  store  store                     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  values product_attribute_value[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, name])
+  @@index([storeId, isActive, sortOrder])
+}
+
+// A product's value for a store-defined attribute. Values remain flexible text
+// so text, numbers, booleans, and JSON-encoded multi-select values can be stored.
+model product_attribute_value {
+  id          Int    @id @default(autoincrement())
+  productId   Int
+  attributeId Int
+  value       String @db.Text
+
+  product   product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attribute store_product_attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, attributeId])
+  @@index([attributeId])
+}
+
+// Options chosen by shoppers, such as Color, Size, Shade, or Capacity.
+model product_option {
+  id        Int    @id @default(autoincrement())
+  productId Int
+  name      String @db.VarChar(100)
+  sortOrder Int    @default(0)
+
+  product product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  values  product_option_value[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, name])
+  @@index([productId, sortOrder])
+}
+
+model product_option_value {
+  id        Int     @id @default(autoincrement())
+  optionId  Int
+  value     String  @db.VarChar(150)
+  colorCode String? @db.VarChar(20)
+  sortOrder Int     @default(0)
+
+  option         product_option                 @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  variantOptions product_variant_option_value[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([optionId, value])
+  @@index([optionId, sortOrder])
+}
+
+// One purchasable SKU / stock record for each option combination.
+model product_variant {
+  id                Int      @id @default(autoincrement())
+  storeId           Int
+  productId         Int
+  title             String   @db.VarChar(300)
+  sku               String?  @db.VarChar(100)
+  barcode           String?  @db.VarChar(100)
+  price             Decimal  @db.Decimal(12, 2)
+  compareAtPrice    Decimal? @db.Decimal(12, 2)
+  stockQuantity     Int      @default(0)
+  trackInventory    Boolean  @default(true)
+  lowStockThreshold Int?
+  imageUrl          String?  @db.VarChar(1000)
+  isDefault         Boolean  @default(false)
+  isAvailable       Boolean  @default(true)
+  sortOrder         Int      @default(0)
+
+  store        store                          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product      product                        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  optionValues product_variant_option_value[]
+  images       product_variant_image[]
+  orderItems   order_item[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, sku])
+  @@unique([storeId, barcode])
+  @@index([storeId, productId, isAvailable])
+  @@index([productId, isDefault])
+}
+
+model product_variant_image {
+  id        Int     @id @default(autoincrement())
+  variantId Int
+  imageUrl  String  @db.VarChar(1000)
+  altText   String? @db.VarChar(255)
+  sortOrder Int     @default(0)
+  isPrimary Boolean @default(false)
+
+  variant product_variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([variantId, sortOrder])
+}
+
+// Join table records which option values make up a variant.
+model product_variant_option_value {
+  id            Int @id @default(autoincrement())
+  variantId     Int
+  optionValueId Int
+
+  variant     product_variant      @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  optionValue product_option_value @relation(fields: [optionValueId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([variantId, optionValueId])
+  @@index([optionValueId])
 }
 
 model product_image {
@@ -419,18 +571,22 @@ model order {
 }
 
 model order_item {
-  id          Int     @id @default(autoincrement())
-  orderId     Int
-  productId   Int?
-  productName String  @db.VarChar(200)
-  sku         String? @db.VarChar(100)
-  imageUrl    String? @db.VarChar(1000)
-  unitPrice   Decimal @db.Decimal(12, 2)
-  quantity    Int
-  lineTotal   Decimal @db.Decimal(12, 2)
+  id             Int     @id @default(autoincrement())
+  orderId        Int
+  productId      Int?
+  variantId      Int?
+  productName    String  @db.VarChar(200)
+  variantTitle   String? @db.VarChar(300)
+  variantOptions Json?
+  sku            String? @db.VarChar(100)
+  imageUrl       String? @db.VarChar(1000)
+  unitPrice      Decimal @db.Decimal(12, 2)
+  quantity       Int
+  lineTotal      Decimal @db.Decimal(12, 2)
 
-  order   order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  order   order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant product_variant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 

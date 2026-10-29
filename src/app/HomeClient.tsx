@@ -1,6 +1,7 @@
 import HomeHeaderHero from "./HomeHeaderHero";
 import Image from "next/image";
 import Link from "next/link";
+import AnimatedCategoryCards from "./AnimatedCategoryCards";
 
 import {
 
@@ -534,103 +535,21 @@ const mutedColor = store.mutedColor;
 
       {/* Benefits */}
 
-      <section className="mx-auto grid max-w-[1440px] grid-cols-2 gap-3 px-4 py-7 sm:grid-cols-4 sm:px-7 sm:py-10 lg:px-12">
-
-        {[
-
-          {
-
-            icon: Truck,
-
-            title: "Convenient delivery",
-
-            detail: "Shop from home",
-
-          },
-
-          {
-
-            icon: ShieldCheck,
-
-            title: "Carefully selected",
-
-            detail: "Everyday essentials",
-
-          },
-
-          {
-
-            icon: Headphones,
-
-            title: "Here to help",
-
-            detail: "Customer support",
-
-          },
-
-          {
-
-            icon: Heart,
-
-            title: "Made for living",
-
-            detail: "For your home",
-
-          },
-
-        ].map((item) => (
-
-          <div
-
-            key={item.title}
-
-            className="flex items-center gap-3 rounded-2xl border border-black/[0.06] bg-white/60 p-3.5 sm:p-4"
-
-          >
-
-            <span
-
-              className="grid size-10 shrink-0 place-items-center rounded-full"
-
-              style={{
-
-                color: primaryColor,
-
-                backgroundColor: surfaceColor,
-
-              }}
-
-            >
-
-              <item.icon size={18} strokeWidth={1.6} />
-
-            </span>
-
-            <span>
-
-              <span className="block text-xs font-semibold text-[#292B25]">
-
-                {item.title}
-
-              </span>
-
-              <span className="mt-1 block text-[10px] text-[#77776D]">
-
-                {item.detail}
-
-              </span>
-
-            </span>
-
-          </div>
-
-        ))}
-
-      </section>
+      <AnimatedCategoryCards
+  categories={categories.slice(0, 4).map((category) => ({
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    imageUrl: imageUrl(
+      category.imageUrl || category.fallbackImageUrl,
+    ),
+  }))}
+  primaryColor={primaryColor}
+/>
 
       {/* Categories */}
 
-      {categories.length > 0 && (
+      {categories.length > 4 && (
 
         <section className="py-10 sm:py-14">
 
@@ -648,13 +567,13 @@ const mutedColor = store.mutedColor;
 
                 >
 
-                  Find your favourites
+                  More to explore
 
                 </p>
 
                 <h2 className="mt-2 text-2xl font-medium tracking-[-0.04em] text-[#292B25] sm:text-3xl">
 
-                  Shop by category
+                  More collections
 
                 </h2>
 
@@ -680,7 +599,7 @@ const mutedColor = store.mutedColor;
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
 
-              {categories.slice(0, 8).map((category, index) => {
+              {categories.slice(4, 8).map((category, index) => {
 
                 const src = imageUrl(
 

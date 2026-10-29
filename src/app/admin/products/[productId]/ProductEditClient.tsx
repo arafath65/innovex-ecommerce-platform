@@ -3,6 +3,7 @@
 import Image from "next/image";
 
 import Link from "next/link";
+import ProductVariantsManager from "./ProductVariantsManager";
 
 import { useRouter } from "next/navigation";
 
@@ -1544,6 +1545,10 @@ export default function ProductEditClient({
           )}
         </section>
       </form>
+
+       <ProductVariantsManager
+        productId={product.id}
+      />
 
       <div className="flex flex-wrap items-center gap-2 px-1 text-[9px] text-black/28">
         <Link
