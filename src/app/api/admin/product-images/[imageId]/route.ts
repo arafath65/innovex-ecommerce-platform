@@ -1,10 +1,8 @@
-import { unlink } from "node:fs/promises";
-import path from "node:path";
-
 import { NextResponse } from "next/server";
 
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { deleteStoredMediaFile } from "@/lib/storage";
 
 export const runtime = "nodejs";
 
@@ -15,7 +13,7 @@ type RouteContext = {
 };
 
 export async function DELETE(
-  request: Request,
+  _request: Request,
   context: RouteContext,
 ) {
   try {
@@ -28,6 +26,13 @@ export async function DELETE(
           message: "Unauthorized.",
         },
         { status: 401 },
+      );
+    }
+
+    if (session.role !== "OWNER" && session.role !== "ADMIN") {
+      return NextResponse.json(
+        { success: false, message: "You do not have permission." },
+        { status: 403 },
       );
     }
 
@@ -51,10 +56,15 @@ export async function DELETE(
       select: {
         id: true,
         imageUrl: true,
+        product: {
+          select: {
+            storeId: true,
+          },
+        },
       },
     });
 
-    if (!image) {
+    if (!image || image.product.storeId !== session.storeId) {
       return NextResponse.json(
         {
           success: false,
@@ -70,32 +80,7 @@ export async function DELETE(
       },
     });
 
-    const imageUrl = image.imageUrl?.trim() ?? "";
-
-    if (
-      imageUrl.startsWith("/product-images/") &&
-      !imageUrl.includes("..")
-    ) {
-      const relativePath = imageUrl.replace(/^\/+/, "");
-      const absolutePath = path.join(
-        process.cwd(),
-        "public",
-        relativePath,
-      );
-
-      try {
-        await unlink(absolutePath);
-      } catch (fileError) {
-        const code =
-          fileError && typeof fileError === "object" && "code" in fileError
-            ? String(fileError.code)
-            : "";
-
-        if (code !== "ENOENT") {
-          console.warn("Failed to remove product image file:", fileError);
-        }
-      }
-    }
+    await deleteStoredMediaFile(image.imageUrl);
 
     return NextResponse.json({
       success: true,

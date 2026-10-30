@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
-import path from "node:path";
 
+import sharp from "sharp";
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { getRequestAuditContext, writeAuditLog } from "@/lib/audit";
+import { saveMediaFile, deleteStoredMediaFile } from "@/lib/storage";
 
 export const runtime = "nodejs";
 
@@ -47,12 +47,31 @@ export async function POST(request: Request) {
       select: { logoUrl: true },
     });
 
-    const directory = path.join(process.cwd(), "public", "uploads", "stores", String(session.storeId), "branding");
-    await mkdir(directory, { recursive: true });
+    const input = Buffer.from(await file.arrayBuffer());
+    const metadata = await sharp(input, { failOn: "error" }).metadata();
+    if (!metadata.format || !["jpeg", "png", "webp"].includes(metadata.format)) {
+      return NextResponse.json({ error: "The uploaded file is not a valid image." }, { status: 400 });
+    }
 
-    const filename = `${randomUUID()}.${extension}`;
-    const relativeUrl = `/uploads/stores/${session.storeId}/branding/${filename}`;
-    await writeFile(path.join(directory, filename), Buffer.from(await file.arrayBuffer()));
+    const optimized = await sharp(input)
+      .rotate()
+      .resize(800, 800, {
+        fit: "contain",
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 86, effort: 5 })
+      .toBuffer();
+
+    if (optimized.length > MAX_FILE_BYTES) {
+      return NextResponse.json({ error: "Logo could not be compressed below 2 MB." }, { status: 400 });
+    }
+
+    const filename = `${randomUUID()}.webp`;
+    const savedMedia = await saveMediaFile(
+      `stores/${session.storeId}/branding/${filename}`,
+      optimized,
+    );
+    const relativeUrl = savedMedia.url;
 
     await prisma.store_profile.upsert({
       where: { storeId: session.storeId },
@@ -66,10 +85,9 @@ export async function POST(request: Request) {
       },
     });
 
-    if (oldProfile?.logoUrl?.startsWith("/uploads/")) {
-      const oldPath = path.join(process.cwd(), "public", oldProfile.logoUrl.replace(/^\//, ""));
-      await unlink(oldPath).catch(() => undefined);
-    }
+    await deleteStoredMediaFile(oldProfile?.logoUrl).catch((error) => {
+      console.warn("Failed to delete previous store logo:", error);
+    });
 
     await writeAuditLog({
       storeId: session.storeId,

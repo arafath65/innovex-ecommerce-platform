@@ -187,7 +187,7 @@ function categoryHref(
   if (search) params.set("search", search);
   params.set("category", slug);
 
-  return `/${encodeURIComponent(storeSlug)}/shop?${params.toString()}`;
+  return `/shop?${params.toString()}`;
 }
 
 function shopHref(
@@ -202,7 +202,7 @@ function shopHref(
 
   const query = params.toString();
 
-  return `/${encodeURIComponent(storeSlug)}/shop${query ? `?${query}` : ""}`;
+  return `/shop${query ? `?${query}` : ""}`;
 }
 
 function productHref(

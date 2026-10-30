@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   try {
     const session = await getSession();
 
-    if (!session || session.storeSlug !== "oscar-trading") {
+    if (!session || (session.role !== "OWNER" && session.role !== "ADMIN")) {
       return NextResponse.json(
         {
           success: false,

@@ -901,7 +901,6 @@ export default function HomeHeaderHero({
                 }}
                 placeholder="Search products..."
                 aria-label="Search products"
-                aria-expanded={showSearchDropdown}
                 aria-controls="header-search-results"
                 autoComplete="off"
                 className="header-product-search-input ml-0 min-w-0 flex-1 !border-0 bg-transparent text-sm text-[#292B25] !outline-none !ring-0 placeholder:text-black/35 focus:!border-0 focus:!outline-none focus:!ring-0 focus-visible:!border-0 focus-visible:!outline-none focus-visible:!ring-0"
@@ -1244,7 +1243,7 @@ export default function HomeHeaderHero({
 
         <div
 
-          className="relative isolate mx-auto min-h-[500px] max-w-[1440px] overflow-hidden rounded-[24px] bg-[#181818] shadow-[0_18px_55px_rgba(0,0,0,0.12)] sm:min-h-[520px] sm:rounded-[30px] lg:min-h-[550px]"
+          className="relative isolate mx-auto min-h-[390px] max-w-[1440px] overflow-visible rounded-[24px] bg-[#181818] shadow-[0_18px_55px_rgba(0,0,0,0.12)] sm:min-h-[430px] sm:rounded-[30px] lg:min-h-[455px]"
 
           style={{ backgroundColor: store.surfaceColor }}
 
@@ -1286,7 +1285,7 @@ export default function HomeHeaderHero({
 
                     aria-hidden={!isDisplayed}
 
-                    className="absolute inset-0"
+                    className="absolute inset-0 overflow-hidden rounded-[24px] sm:rounded-[30px]"
 
                     style={{ zIndex: isDisplayed ? 1 : 0 }}
 
@@ -1356,7 +1355,7 @@ export default function HomeHeaderHero({
 
           {/* Text overlay */}
 
-          <div className="relative z-10 flex min-h-[500px] items-center px-6 py-12 sm:min-h-[520px] sm:px-10 sm:py-14 lg:min-h-[550px] lg:px-16 xl:px-20">
+          <div className="relative z-10 flex min-h-[390px] items-center px-6 py-8 sm:min-h-[430px] sm:px-10 sm:py-10 lg:min-h-[455px] lg:px-16 xl:px-20">
 
             <div className="w-full max-w-[620px] pb-5 sm:pb-8">
 
@@ -1556,75 +1555,80 @@ export default function HomeHeaderHero({
 
           {/* Round offer badge */}
 
-          {(currentSlide.offerPercent ?? store.heroOfferPercent) > 0 && (
+          {/* Premium overlapping sale burst badge */}
 
-            <AnimatePresence initial={false}>
+{(currentSlide.offerPercent ?? store.heroOfferPercent) > 0 && (
+  <AnimatePresence initial={false}>
+    <m.div
+      key={`offer-${currentSlide.id}`}
+      initial={
+        reducedMotion
+          ? false
+          : {
+              y: -45,
+              scale: 0.7,
+              rotate: 20,
+              opacity: 0,
+            }
+      }
+      animate={{
+        y: 0,
+        scale: 1,
+        rotate: 8,
+        opacity: 1,
+      }}
+      exit={
+        reducedMotion
+          ? undefined
+          : {
+              y: -20,
+              scale: 0.85,
+              opacity: 0,
+            }
+      }
+      transition={{
+        duration: reducedMotion ? 0 : 0.9,
+        delay: reducedMotion ? 0 : 0.3,
+        ease: smoothEase,
+      }}
+      className="absolute -right-4 -top-5 z-30 h-[122px] w-[122px] sm:-right-5 sm:-top-7 sm:h-[148px] sm:w-[148px]"
+      style={{
+        clipPath:
+          "polygon(50% 0%, 59% 8%, 72% 3%, 79% 14%, 92% 16%, 91% 29%, 100% 38%, 93% 50%, 100% 62%, 91% 71%, 92% 84%, 79% 86%, 72% 97%, 59% 92%, 50% 100%, 41% 92%, 28% 97%, 21% 86%, 8% 84%, 9% 71%, 0% 62%, 7% 50%, 0% 38%, 9% 29%, 8% 16%, 21% 14%, 28% 3%, 41% 8%)",
+        backgroundColor: store.accentColor || "#F5C542",
+        filter: "drop-shadow(0 10px 15px rgba(0,0,0,0.25))",
+      }}
+      aria-label={`${currentSlide.offerPercent ?? store.heroOfferPercent}% discount`}
+    >
+      <div
+        className="absolute inset-[4px] grid place-items-center text-center text-white"
+        style={{
+          clipPath:
+            "polygon(50% 0%, 59% 8%, 72% 3%, 79% 14%, 92% 16%, 91% 29%, 100% 38%, 93% 50%, 100% 62%, 91% 71%, 92% 84%, 79% 86%, 72% 97%, 59% 92%, 50% 100%, 41% 92%, 28% 97%, 21% 86%, 8% 84%, 9% 71%, 0% 62%, 7% 50%, 0% 38%, 9% 29%, 8% 16%, 21% 14%, 28% 3%, 41% 8%)",
+          backgroundColor: store.primaryColor,
+        }}
+      >
+        <div className="-rotate-[8deg]">
+          <span className="block text-[8px] font-bold uppercase tracking-[0.2em] text-white/85 sm:text-[9px]">
+            Special offer
+          </span>
 
-              <m.div
+          <span className="mt-0.5 block text-[34px] font-black leading-none tracking-[-0.06em] sm:text-[43px]">
+            {currentSlide.offerPercent ?? store.heroOfferPercent}%
+          </span>
 
-                key={`offer-${currentSlide.id}`}
+          <span className="mt-1 block text-[10px] font-extrabold uppercase tracking-[0.25em] text-[#F5C542] sm:text-xs">
+            OFF
+          </span>
 
-                initial={
-
-                  reducedMotion
-
-                    ? false
-
-                    : { y: -48, scale: 0.94, opacity: 0 }
-
-                }
-
-                animate={{ y: 0, scale: 1, opacity: 1 }}
-
-                exit={
-
-                  reducedMotion ? undefined : { y: -18, opacity: 0 }
-
-                }
-
-                transition={{
-
-                  duration: reducedMotion ? 0 : 1.15,
-
-                  delay: reducedMotion ? 0 : 0.38,
-
-                  ease: smoothEase,
-
-                }}
-
-                className="absolute bottom-5 right-5 z-20 grid size-[78px] place-items-center rounded-full border border-white/35 text-center text-white shadow-xl backdrop-blur-sm sm:bottom-7 sm:right-7 sm:size-[94px]"
-
-                style={{ backgroundColor: store.primaryColor }}
-
-              >
-
-                <span>
-
-                  <span className="block text-[8px] uppercase tracking-[0.14em] text-white/80">
-
-                    Up to
-
-                  </span>
-
-                  <span className="block text-2xl font-semibold leading-7 sm:text-3xl">
-
-                    {currentSlide.offerPercent ?? store.heroOfferPercent}%
-
-                  </span>
-
-                  <span className="block text-[8px] uppercase tracking-[0.16em]">
-
-                    off
-
-                  </span>
-
-                </span>
-
-              </m.div>
-
-            </AnimatePresence>
-
-          )}
+          <span className="mt-1 block text-[7px] font-semibold uppercase tracking-[0.12em] text-white/65">
+            Don&apos;t miss it
+          </span>
+        </div>
+      </div>
+    </m.div>
+  </AnimatePresence>
+)}
 
           {/* Carousel arrows */}
 

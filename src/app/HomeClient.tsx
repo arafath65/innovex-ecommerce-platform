@@ -1,30 +1,18 @@
 import HomeHeaderHero from "./HomeHeaderHero";
 import Image from "next/image";
 import Link from "next/link";
-import AnimatedCategoryCards from "./AnimatedCategoryCards";
+import AnimatedBenefitCards from "./AnimatedBenefitCards";
+import CategoryMarquee from "./CategoryMarquee";
+import FlashSaleCarousel from "./FlashSaleCarousel";
+import KitchenCompanion from "./KitchenCompanion";
 
 import {
-
   ArrowRight,
-
   ArrowUpRight,
-
-  ChevronRight,
-
   Clock3,
-
   Headphones,
-
-  Heart,
-
   Mail,
-
-  ShieldCheck,
-
   ShoppingBag,
-
-  Truck,
-
 } from "lucide-react";
 
 type ProductImage = {
@@ -88,6 +76,7 @@ type Category = {
   imageUrl: string | null;
 
   fallbackImageUrl: string | null;
+  productCount: number;
 
 };
 
@@ -167,6 +156,10 @@ type HomeClientProps = {
   categories: Category[];
 
   products: Product[];
+
+  flashSaleProducts: Product[];
+
+  newArrivalProducts: Product[];
 
   heroSlides: HeroSlide[];
 
@@ -367,20 +360,17 @@ function ProductCard({
 
           />
 
+          <span
+            className="absolute left-3 top-3 rounded-full px-3 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-white shadow-sm"
+            style={{ backgroundColor: primaryColor }}
+          >
+            New
+          </span>
+
           {discount > 0 && (
-
-            <span
-
-              className="absolute left-3 top-3 rounded-full px-3 py-1 text-[10px] font-semibold text-white"
-
-              style={{ backgroundColor: primaryColor }}
-
-            >
-
+            <span className="absolute right-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[9px] font-semibold text-[#292B25] shadow-sm">
               Save {discount}%
-
             </span>
-
           )}
 
           {!product.isAvailable && (
@@ -462,15 +452,13 @@ function ProductCard({
 }
 
 export default function HomeClient({
-
   store,
-
   categories,
-
   products,
-
+  flashSaleProducts,
+  newArrivalProducts,
   heroSlides,
-
+  shopHref,
 }: HomeClientProps) {
 
   const primaryColor = store.primaryColor;
@@ -482,18 +470,6 @@ const mutedColor = store.mutedColor;
   ? productImage(products[0]).src
 
   : "";
-
-  const featuredProducts = products.filter(
-
-    (product) => product.isFeatured,
-
-  );
-
-  const displayProducts = (
-
-    featuredProducts.length > 0 ? featuredProducts : products
-
-  ).slice(0, 8);
 
   const dealProducts = products.filter(
 
@@ -535,305 +511,100 @@ const mutedColor = store.mutedColor;
 
       {/* Benefits */}
 
-      <AnimatedCategoryCards
-  categories={categories.slice(0, 4).map((category) => ({
-    id: category.id,
-    name: category.name,
-    slug: category.slug,
-    imageUrl: imageUrl(
-      category.imageUrl || category.fallbackImageUrl,
-    ),
-  }))}
+      <AnimatedBenefitCards />
+
+      {/* Categories */}
+<CategoryMarquee
+  categories={categories
+    .filter((category) => Boolean(imageUrl(category.imageUrl)))
+    .map((category) => ({
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      imageUrl: imageUrl(category.imageUrl),
+      productCount: category.productCount,
+    }))}
   primaryColor={primaryColor}
 />
 
-      {/* Categories */}
-
-      {categories.length > 4 && (
-
-        <section className="py-10 sm:py-14">
-
-          <div className="mx-auto max-w-[1440px] px-4 sm:px-7 lg:px-12">
-
-            <div className="mb-7 flex items-end justify-between gap-4 sm:mb-9">
-
-              <div>
-
-                <p
-
-                  className="text-[10px] font-semibold uppercase tracking-[0.2em]"
-
-                  style={{ color: primaryColor }}
-
-                >
-
-                  More to explore
-
-                </p>
-
-                <h2 className="mt-2 text-2xl font-medium tracking-[-0.04em] text-[#292B25] sm:text-3xl">
-
-                  More collections
-
-                </h2>
-
-              </div>
-
-              <Link
-
-                href="/shop"
-
-                className="inline-flex shrink-0 items-center gap-2 text-xs font-medium"
-
-                style={{ color: primaryColor }}
-
-              >
-
-                View all
-
-                <ChevronRight size={15} />
-
-              </Link>
-
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
-
-              {categories.slice(4, 8).map((category, index) => {
-
-                const src = imageUrl(
-
-                  category.imageUrl || category.fallbackImageUrl,
-
-                );
-
-                return (
-
-                  <Link
-
-                    key={category.id}
-
-                    href={categoryLink(category.slug)}
-
-                    className="group relative overflow-hidden rounded-2xl sm:rounded-3xl"
-
-                    style={{ backgroundColor: surfaceColor }}
-
-                  >
-
-                    <div className="relative aspect-[4/3] overflow-hidden">
-
-                      {src ? (
-
-                        <StoreImage
-
-                          src={src}
-
-                          alt={category.name}
-
-                          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-
-                        />
-
-                      ) : (
-
-                        <div
-
-                          className="grid h-full place-items-center"
-
-                          style={{
-
-                            background: `linear-gradient(135deg, ${surfaceColor}, ${primaryColor}18)`,
-
-                          }}
-
-                        >
-
-                          <ShoppingBag
-
-                            size={30}
-
-                            strokeWidth={1.1}
-
-                            className="text-black/25"
-
-                          />
-
-                        </div>
-
-                      )}
-
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-
-                      <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-2 text-white sm:bottom-5 sm:left-5 sm:right-5">
-
-                        <div>
-
-                          <span className="block text-[9px] uppercase tracking-[0.12em] text-white/70">
-
-                            Collection {String(index + 1).padStart(2, "0")}
-
-                          </span>
-
-                          <h3 className="mt-1 text-sm font-medium sm:text-base">
-
-                            {category.name}
-
-                          </h3>
-
-                        </div>
-
-                        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-white/20 backdrop-blur transition group-hover:bg-white group-hover:text-[#292B25]">
-
-                          <ArrowUpRight size={15} />
-
-                        </span>
-
-                      </div>
-
-                    </div>
-
-                  </Link>
-
-                );
-
-              })}
-
-            </div>
-
-          </div>
-
-        </section>
-
-      )}
-
-      {/* Featured products */}
-
+{/* Flash Sale */}
+{flashSaleProducts.length > 0 && (
+  <FlashSaleCarousel
+    products={flashSaleProducts}
+    currency={store.currency}
+    primaryColor={primaryColor}
+    surfaceColor={surfaceColor}
+    mutedColor={mutedColor}
+  />
+)}
+
+      {/* New Arrivals */}
       <section className="bg-white py-12 sm:py-16">
-
         <div className="mx-auto max-w-[1440px] px-4 sm:px-7 lg:px-12">
-
           <div className="mb-8 flex items-end justify-between gap-4 sm:mb-10">
-
             <div>
-
               <p
-
                 className="text-[10px] font-semibold uppercase tracking-[0.2em]"
-
                 style={{ color: primaryColor }}
-
               >
-
-                Selected for your home
-
+                Just landed
               </p>
-
               <h2 className="mt-2 text-2xl font-medium tracking-[-0.04em] text-[#292B25] sm:text-3xl">
-
-                {featuredProducts.length > 0
-
-                  ? "Featured favourites"
-
-                  : "Explore our products"}
-
+                New Arrivals
               </h2>
-
               <p className="mt-2 max-w-lg text-xs leading-5 text-[#77776D] sm:text-sm">
-
-                Discover practical essentials to make everyday cooking and
-
-                kitchen life feel a little more special.
-
+                Be among the first to discover our latest additions for your home.
               </p>
-
             </div>
 
             <Link
-
               href="/shop"
-
               className="inline-flex shrink-0 items-center gap-2 text-xs font-medium"
-
               style={{ color: primaryColor }}
-
             >
-
-              Shop all
-
+              View all
               <ArrowRight size={15} />
-
             </Link>
-
           </div>
 
-          {displayProducts.length > 0 ? (
-
+          {newArrivalProducts.length > 0 ? (
             <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-10 lg:grid-cols-4 lg:gap-x-7">
-
-              {displayProducts.map((product) => (
-
+              {newArrivalProducts.slice(0, 8).map((product) => (
                 <ProductCard
-
                   key={product.id}
-
                   product={product}
-
                   currency={store.currency}
-
                   primaryColor={primaryColor}
-
                   surfaceColor={surfaceColor}
-
                   mutedColor={mutedColor}
-
                 />
-
               ))}
-
             </div>
-
           ) : (
-
             <div
-
-              className="rounded-3xl px-5 py-16 text-center"
-
+              className="rounded-3xl px-5 py-14 text-center"
               style={{ backgroundColor: surfaceColor }}
-
             >
-
               <ShoppingBag
-
                 size={30}
-
                 strokeWidth={1.2}
-
                 className="mx-auto text-black/30"
-
               />
-
               <h3 className="mt-4 text-lg font-medium text-[#292B25]">
-
-                Our collection is being prepared
-
+                New discoveries are on the way
               </h3>
-
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#77776D]">
-
-                Please check back soon to explore our kitchenware and home
-
-                essentials.
-
+                Check back soon to see the latest additions to our collection.
               </p>
-
             </div>
-
           )}
-
         </div>
-
       </section>
+
+      {/* Oscar Trading helpful guides */}
+      {store.slug.toLowerCase() === "oscar-trading" && (
+        <KitchenCompanion primaryColor={primaryColor} shopHref={shopHref} />
+      )}
 
       {/* Editorial collection banner */}
 

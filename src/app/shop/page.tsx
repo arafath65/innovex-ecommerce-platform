@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import ShopClient from "./ShopClient";
 import { prisma } from "@/lib/prisma";
+import { resolveStorefrontForCurrentRequest } from "@/lib/storefront-domain";
 
 type ShopPageProps = {
   searchParams: Promise<{
@@ -21,6 +22,8 @@ function getQueryValue(
 }
 
 async function getStore(storeSlug: string) {
+  const resolution = await resolveStorefrontForCurrentRequest();
+
   const select = {
     id: true,
     name: true,
@@ -38,7 +41,19 @@ async function getStore(storeSlug: string) {
     },
   } as const;
 
-  if (storeSlug) {
+  // A configured hostname always wins over a query-string store slug.
+  if (resolution.kind === "store") {
+    return prisma.store.findFirst({
+      where: {
+        id: resolution.storeId,
+        isActive: true,
+      },
+      select,
+    });
+  }
+
+  // Query-string slug preview is only retained for local development.
+  if (process.env.NODE_ENV !== "production" && storeSlug) {
     return prisma.store.findFirst({
       where: {
         slug: storeSlug,
@@ -48,15 +63,7 @@ async function getStore(storeSlug: string) {
     });
   }
 
-  return prisma.store.findFirst({
-    where: {
-      isActive: true,
-    },
-    orderBy: {
-      id: "asc",
-    },
-    select,
-  });
+  return null;
 }
 
 export async function generateMetadata({

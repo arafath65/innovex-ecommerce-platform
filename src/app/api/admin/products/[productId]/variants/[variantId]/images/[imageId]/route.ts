@@ -1,10 +1,8 @@
-import { unlink } from "node:fs/promises";
-import path from "node:path";
-
 import { NextResponse } from "next/server";
 
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { deleteStoredMediaFile } from "@/lib/storage";
 
 export const runtime = "nodejs";
 
@@ -238,40 +236,7 @@ export async function DELETE(
         return null;
       });
 
-    const imageUrl = image.imageUrl.trim();
-    const expectedPrefix =
-      `/product-images/variant-${variantId}/`;
-
-    if (
-      imageUrl.startsWith(expectedPrefix) &&
-      !imageUrl.includes("..")
-    ) {
-      const relativePath = imageUrl.replace(/^\/+/, "");
-
-      const absolutePath = path.join(
-        process.cwd(),
-        "public",
-        relativePath,
-      );
-
-      try {
-        await unlink(absolutePath);
-      } catch (fileError) {
-        const code =
-          fileError &&
-          typeof fileError === "object" &&
-          "code" in fileError
-            ? String(fileError.code)
-            : "";
-
-        if (code !== "ENOENT") {
-          console.warn(
-            "Failed to remove variant image file:",
-            fileError,
-          );
-        }
-      }
-    }
+    await deleteStoredMediaFile(image.imageUrl);
 
     return NextResponse.json({
       success: true,

@@ -1,10 +1,19 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireSuperAdmin } from "@/lib/super-admin-auth";
 
 export const runtime = "nodejs";
 
 export async function GET() {
+  const auth = await requireSuperAdmin();
+  if ("error" in auth) {
+    return NextResponse.json(
+      { success: false, message: auth.error },
+      { status: auth.status },
+    );
+  }
+
   try {
     const stores = await prisma.store.findMany({
       select: {

@@ -11,6 +11,7 @@ import { NextResponse } from "next/server";
 
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getMediaDirectory, toMediaUrl } from "@/lib/storage";
 
 export const runtime = "nodejs";
 
@@ -275,16 +276,10 @@ export async function POST(
       }
     }
 
-    const relativeDirectory = path.posix.join(
-      "product-images",
-      `variant-${variantId}`,
-    );
+    const relativeDirectory =
+      `stores/${session.storeId}/variants/${variantId}`;
 
-    const absoluteDirectory = path.join(
-      process.cwd(),
-      "public",
-      relativeDirectory,
-    );
+    const absoluteDirectory = getMediaDirectory(relativeDirectory);
 
     await mkdir(absoluteDirectory, {
       recursive: true,
@@ -333,7 +328,7 @@ export async function POST(
         );
 
         const imageUrl =
-          `/${relativeDirectory}/${fileName}`;
+          toMediaUrl(`${relativeDirectory}/${fileName}`);
 
         await writeFile(
           absoluteFilePath,

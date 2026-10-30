@@ -1,17 +1,18 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
-import path from "node:path";
 
+import sharp from "sharp";
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { getRequestAuditContext, writeAuditLog } from "@/lib/audit";
+import { saveMediaFile, deleteStoredMediaFile } from "@/lib/storage";
 
 export const runtime = "nodejs";
 
 const MAX_SLIDES = 3;
-const MAX_FILE_BYTES = 2_000_000;
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_OUTPUT_BYTES = 2_000_000;
 const ALLOWED_TYPES = new Map([
   ["image/jpeg", "jpg"],
   ["image/png", "png"],
@@ -74,24 +75,45 @@ export async function POST(request: Request) {
 
     if (file.size > MAX_FILE_BYTES) {
       return NextResponse.json(
-        { error: "Hero image must be 2 MB or smaller." },
+        { error: "Original hero image must be 10 MB or smaller." },
         { status: 400 },
       );
     }
 
-    const storeDir = path.join(process.cwd(), "public", "uploads", "stores", String(auth.session.storeId), "hero");
-    await mkdir(storeDir, { recursive: true });
+    const input = Buffer.from(await file.arrayBuffer());
+    const metadata = await sharp(input, { failOn: "error" }).metadata();
+    if (!metadata.format || !["jpeg", "png", "webp"].includes(metadata.format)) {
+      return NextResponse.json({ error: "The uploaded file is not a valid image." }, { status: 400 });
+    }
 
-    const filename = `${randomUUID()}.${extension}`;
-    const absolutePath = path.join(storeDir, filename);
-    const bytes = Buffer.from(await file.arrayBuffer());
-    await writeFile(absolutePath, bytes);
+    let optimized = await sharp(input)
+      .rotate()
+      .resize({ width: 2400, height: 1600, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 82, effort: 5 })
+      .toBuffer();
+
+    if (optimized.length > MAX_OUTPUT_BYTES) {
+      optimized = await sharp(input)
+        .rotate()
+        .resize({ width: 1600, height: 1200, fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 68, effort: 5 })
+        .toBuffer();
+    }
+    if (optimized.length > MAX_OUTPUT_BYTES) {
+      return NextResponse.json({ error: "Hero image could not be compressed below 2 MB." }, { status: 400 });
+    }
+
+    const filename = `${randomUUID()}.webp`;
+    const savedMedia = await saveMediaFile(
+      `stores/${auth.session.storeId}/hero/${filename}`,
+      optimized,
+    );
 
     const nextOrder = count + 1;
     const slide = await prisma.hero_slide.create({
       data: {
         storeId: auth.session.storeId,
-        imageUrl: `/uploads/stores/${auth.session.storeId}/hero/${filename}`,
+        imageUrl: savedMedia.url,
         eyebrow: String(formData.get("eyebrow") ?? "").trim() || null,
         title: String(formData.get("title") ?? "").trim() || null,
         accentText: String(formData.get("accentText") ?? "").trim() || null,
@@ -189,10 +211,9 @@ export async function DELETE(request: Request) {
 
     await prisma.hero_slide.delete({ where: { id: slide.id } });
 
-    if (slide.imageUrl.startsWith("/uploads/")) {
-      const absolutePath = path.join(process.cwd(), "public", slide.imageUrl.replace(/^\//, ""));
-      await unlink(absolutePath).catch(() => undefined);
-    }
+    await deleteStoredMediaFile(slide.imageUrl).catch((error) => {
+      console.warn("Failed to delete hero slide media:", error);
+    });
 
     const remaining = await prisma.hero_slide.findMany({
       where: { storeId: auth.session.storeId },

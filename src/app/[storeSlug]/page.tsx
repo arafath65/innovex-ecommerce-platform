@@ -2,6 +2,8 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import HomeClient from "@/app/HomeClient";
+import { notFound } from "next/navigation";
+import { isStoreSlugPreviewAllowed } from "@/lib/storefront-domain";
 
 export const metadata: Metadata = {
   title: "Oscar Trading | Kitchenware & Home Essentials",
@@ -16,6 +18,8 @@ type PageProps = {
 };
 
 export default async function HomePage({ params }: PageProps) {
+  if (!isStoreSlugPreviewAllowed()) notFound();
+
   const { storeSlug: rawStoreSlug } = await params;
   const storeSlug = rawStoreSlug.trim().toLowerCase();
 
@@ -138,7 +142,15 @@ const announcementMessages = [
         slug: true,
         description: true,
         imageUrl: true,
-      },
+      children: {
+    where: {
+      isActive: true,
+    },
+    select: {
+      id: true,
+    },
+  },
+},
       orderBy: { name: "asc" },
       take: 12,
     }),
@@ -198,7 +210,236 @@ const announcementMessages = [
     createdAt: product.createdAt.toISOString(),
   }));
 
-  const categoriesWithFallback = categories.map((category) => {
+  // Fetch the latest available products separately from the featured product list.
+  const rawNewArrivalProducts = await prisma.product.findMany({
+    where: {
+      storeId: store.id,
+      status: "PUBLISHED",
+      isAvailable: true,
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      price: true,
+      compareAtPrice: true,
+      shortDescription: true,
+      isFeatured: true,
+      isAvailable: true,
+      createdAt: true,
+      category: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
+      images: {
+        select: {
+          id: true,
+          imageUrl: true,
+          altText: true,
+          isPrimary: true,
+          sortOrder: true,
+        },
+        orderBy: [
+          { isPrimary: "desc" },
+          { sortOrder: "asc" },
+        ],
+        take: 3,
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 8,
+  });
+
+  const newArrivalProducts = rawNewArrivalProducts.map((product) => ({
+    ...product,
+    price: product.price.toString(),
+    compareAtPrice: product.compareAtPrice?.toString() ?? null,
+    createdAt: product.createdAt.toISOString(),
+  }));
+
+  // Get actual product sales, excluding pending and cancelled orders.
+const salesByProduct = await prisma.order_item.groupBy({
+  by: ["productId"],
+  where: {
+    productId: { not: null },
+    order: {
+      is: {
+        storeId: store.id,
+        status: {
+          in: [
+            "CONFIRMED",
+            "PROCESSING",
+            "READY",
+            "SHIPPED",
+            "DELIVERED",
+          ],
+        },
+        paymentStatus: {
+          notIn: ["FAILED", "REFUNDED"],
+        },
+      },
+    },
+  },
+  _sum: {
+    quantity: true,
+  },
+  orderBy: {
+    _sum: {
+      quantity: "desc",
+    },
+  },
+  take: 100,
+});
+
+const soldQuantityByProduct = new Map<number, number>();
+
+for (const sale of salesByProduct) {
+  if (sale.productId !== null) {
+    soldQuantityByProduct.set(
+      sale.productId,
+      sale._sum.quantity ?? 0,
+    );
+  }
+}
+
+// Get recent discounted products as additional candidates.
+const recentDiscountCandidates = await prisma.product.findMany({
+  where: {
+    storeId: store.id,
+    status: "PUBLISHED",
+    isAvailable: true,
+    compareAtPrice: { not: null },
+  },
+  select: {
+    id: true,
+    name: true,
+    slug: true,
+    price: true,
+    compareAtPrice: true,
+    shortDescription: true,
+    isFeatured: true,
+    isAvailable: true,
+    createdAt: true,
+    category: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+      },
+    },
+    images: {
+      select: {
+        id: true,
+        imageUrl: true,
+        altText: true,
+        isPrimary: true,
+        sortOrder: true,
+      },
+      orderBy: [
+        { isPrimary: "desc" },
+        { sortOrder: "asc" },
+      ],
+      take: 3,
+    },
+  },
+  orderBy: {
+    createdAt: "desc",
+  },
+  take: 100,
+});
+
+const soldProductIds = salesByProduct.flatMap((sale) =>
+  sale.productId === null ? [] : [sale.productId],
+);
+
+const soldDiscountCandidates =
+  soldProductIds.length > 0
+    ? await prisma.product.findMany({
+        where: {
+          storeId: store.id,
+          status: "PUBLISHED",
+          isAvailable: true,
+          id: { in: soldProductIds },
+          compareAtPrice: { not: null },
+        },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          price: true,
+          compareAtPrice: true,
+          shortDescription: true,
+          isFeatured: true,
+          isAvailable: true,
+          createdAt: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+          images: {
+            select: {
+              id: true,
+              imageUrl: true,
+              altText: true,
+              isPrimary: true,
+              sortOrder: true,
+            },
+            orderBy: [
+              { isPrimary: "desc" },
+              { sortOrder: "asc" },
+            ],
+            take: 3,
+          },
+        },
+      })
+    : [];
+
+const flashSaleCandidateMap = new Map(
+  recentDiscountCandidates.map((product) => [
+    product.id,
+    product,
+  ]),
+);
+
+for (const product of soldDiscountCandidates) {
+  flashSaleCandidateMap.set(product.id, product);
+}
+
+const flashSaleProducts = Array.from(
+  flashSaleCandidateMap.values(),
+)
+  .filter(
+    (product) =>
+      product.compareAtPrice !== null &&
+      Number(product.compareAtPrice) > Number(product.price),
+  )
+  .sort((a, b) => {
+    const salesDifference =
+      (soldQuantityByProduct.get(b.id) ?? 0) -
+      (soldQuantityByProduct.get(a.id) ?? 0);
+
+    if (salesDifference !== 0) {
+      return salesDifference;
+    }
+
+    return b.createdAt.getTime() - a.createdAt.getTime();
+  })
+  .slice(0, 10)
+  .map((product) => ({
+    ...product,
+    price: product.price.toString(),
+    compareAtPrice: product.compareAtPrice?.toString() ?? null,
+    createdAt: product.createdAt.toISOString(),
+  }));
+
+  const categoriesWithFallback = await Promise.all(
+  categories.map(async (category) => {
     const categoryProduct = products.find(
       (product) => product.category?.id === category.id,
     );
@@ -207,11 +448,33 @@ const announcementMessages = [
       categoryProduct?.images?.find((image) => image.isPrimary) ??
       categoryProduct?.images?.[0];
 
+    const categoryIds = [
+      category.id,
+      ...category.children.map((child) => child.id),
+    ];
+
+    const productCount = await prisma.product.count({
+      where: {
+        storeId: store.id,
+        categoryId: {
+          in: categoryIds,
+        },
+        status: "PUBLISHED",
+        isAvailable: true,
+      },
+    });
+
     return {
-      ...category,
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      description: category.description,
+      imageUrl: category.imageUrl,
       fallbackImageUrl: fallbackImage?.imageUrl ?? null,
+      productCount,
     };
-  });
+  }),
+);
 
   return (
     <HomeClient
@@ -255,7 +518,10 @@ tiktokUrl: store.profile?.tiktokUrl ?? null,
       
       categories={categoriesWithFallback}
       products={products}
+      flashSaleProducts={flashSaleProducts}
+      newArrivalProducts={newArrivalProducts}
       heroSlides={store.heroSlides}
+      shopHref={`/${store.slug}/shop`}
     />
 
     

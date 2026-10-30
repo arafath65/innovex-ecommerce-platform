@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getMediaDirectory, toMediaUrl } from "@/lib/storage";
 
 export const runtime = "nodejs";
 
@@ -225,10 +226,18 @@ export async function POST(
      * PRODUCT EXISTENCE
      * ---------------------------------------------------------------
      */
+    if (session.role !== "OWNER" && session.role !== "ADMIN") {
+      return NextResponse.json(
+        { success: false, message: "You do not have permission." },
+        { status: 403 },
+      );
+    }
+
     const product =
-      await prisma.product.findUnique({
+      await prisma.product.findFirst({
         where: {
           id: productId,
+          storeId: session.storeId,
         },
         select: {
           id: true,
@@ -370,23 +379,14 @@ export async function POST(
      * STORAGE DIRECTORY
      * ---------------------------------------------------------------
      *
-     * Keep the image URL under /product-images/ so the existing
-     * delete-image route can continue to remove the physical file.
-     *
+     * Store uploads outside the application release so deployments do not
+     * remove tenant media. The database keeps a stable /media URL.
      * New files are normalized to WebP.
      */
     const relativeDirectory =
-      path.posix.join(
-        "product-images",
-        `product-${productId}`,
-      );
+      `stores/${session.storeId}/products/${productId}`;
 
-    const absoluteDirectory =
-      path.join(
-        process.cwd(),
-        "public",
-        relativeDirectory,
-      );
+    const absoluteDirectory = getMediaDirectory(relativeDirectory);
 
     await mkdir(
       absoluteDirectory,
@@ -409,6 +409,7 @@ export async function POST(
     }> = [];
 
     const createdFilePaths: string[] = [];
+    const createdImageIds: number[] = [];
 
     try {
       for (
@@ -442,16 +443,7 @@ export async function POST(
         if (
           !metadata.format
         ) {
-          return NextResponse.json(
-            {
-              success: false,
-              message:
-                `${file.name} is not a valid image file.`,
-            },
-            {
-              status: 400,
-            },
-          );
+          throw new Error(`${file.name} is not a valid image file.`);
         }
 
         /*
@@ -491,7 +483,7 @@ export async function POST(
           );
 
         const relativeFileUrl =
-          `/${relativeDirectory}/${fileName}`;
+          toMediaUrl(`${relativeDirectory}/${fileName}`);
 
         /*
          * -----------------------------------------------------------
@@ -553,8 +545,16 @@ export async function POST(
         createdImages.push(
           created,
         );
+        createdImageIds.push(created.id);
       }
     } catch (processingError) {
+      // Roll back any database rows created earlier in this batch.
+      if (createdImageIds.length > 0) {
+        await prisma.product_image.deleteMany({
+          where: { id: { in: createdImageIds }, productId },
+        }).catch(() => undefined);
+      }
+
       /*
        * Remove files already written if anything fails.
        */

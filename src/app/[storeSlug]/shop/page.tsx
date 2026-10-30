@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import ShopClient from "./ShopClient";
 import { prisma } from "@/lib/prisma";
+import { notFound } from "next/navigation";
+import { isStoreSlugPreviewAllowed } from "@/lib/storefront-domain";
 
 type ShopPageProps = {
   params: Promise<{
@@ -80,6 +82,8 @@ export default async function ShopPage({
   params,
   searchParams,
 }: ShopPageProps) {
+  if (!isStoreSlugPreviewAllowed()) notFound();
+
   // Get the store slug from the URL path.
   const { storeSlug: rawSlug } = await params;
   const storeSlug = rawSlug.trim().toLowerCase();

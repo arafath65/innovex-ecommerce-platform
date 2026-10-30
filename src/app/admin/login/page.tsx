@@ -68,23 +68,14 @@ export default function AdminLoginPage() {
         const params = new URLSearchParams(window.location.search);
         const slug = params.get("store")?.trim().toLowerCase();
 
-        if (!slug) {
-          if (!cancelled) {
-            setStoreError(
-              "Store information is missing. Please open the correct store admin login link.",
-            );
-            setLoadingStore(false);
-          }
-          return;
-        }
+        const contextUrl = slug
+          ? `/api/auth/store-context?slug=${encodeURIComponent(slug)}`
+          : "/api/auth/store-context";
 
-        const response = await fetch(
-          `/api/auth/store-context?slug=${encodeURIComponent(slug)}`,
-          {
-            method: "GET",
-            cache: "no-store",
-          },
-        );
+        const response = await fetch(contextUrl, {
+          method: "GET",
+          cache: "no-store",
+        });
 
         const data: StoreContextResponse = await response.json();
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { resolveStorefrontForCurrentRequest } from "@/lib/storefront-domain";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,22 +14,24 @@ export async function GET(request: Request) {
       .trim()
       .toLowerCase();
 
-    if (query.length < 2 || !storeSlug) {
-      return NextResponse.json({
-        success: true,
-        products: [],
-      });
+    if (query.length < 2) {
+      return NextResponse.json({ success: true, products: [] });
     }
 
-    const store = await prisma.store.findFirst({
-      where: {
-        slug: storeSlug,
-        isActive: true,
-      },
-      select: {
-        id: true,
-      },
-    });
+    const resolution = await resolveStorefrontForCurrentRequest();
+    let store = null;
+
+    if (resolution.kind === "store") {
+      store = await prisma.store.findFirst({
+        where: { id: resolution.storeId, isActive: true },
+        select: { id: true },
+      });
+    } else if (process.env.NODE_ENV !== "production" && storeSlug) {
+      store = await prisma.store.findFirst({
+        where: { slug: storeSlug, isActive: true },
+        select: { id: true },
+      });
+    }
 
     if (!store) {
       return NextResponse.json({

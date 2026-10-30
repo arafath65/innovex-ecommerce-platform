@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createStoreAdminSession } from "@/lib/auth";
 import { getRequestAuditContext, writeAuditLog } from "@/lib/audit";
+import { resolveStorefrontForCurrentRequest } from "@/lib/storefront-domain";
 
 export const runtime = "nodejs";
 
@@ -41,6 +42,20 @@ export async function POST(request: Request) {
           message: "Store information is required.",
         },
         { status: 400 },
+      );
+    }
+
+    const storefront = await resolveStorefrontForCurrentRequest();
+    if (storefront.kind === "store" && storefront.storeSlug !== storeSlug) {
+      return NextResponse.json(
+        { success: false, message: "The requested store does not match this domain." },
+        { status: 403 },
+      );
+    }
+    if (storefront.kind === "unmapped" && process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { success: false, message: "This domain is not connected to an active store." },
+        { status: 404 },
       );
     }
 

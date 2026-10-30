@@ -1,0 +1,309 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.card {
+  position: relative;
+  min-width: 0;
+  min-height: 142px;
+  display: grid;
+  grid-template-columns: 42% 58%;
+  overflow: hidden;
+  isolation: isolate;
+
+  border: 1px solid rgba(54, 43, 32, 0.08);
+  border-radius: 19px;
+
+  background:
+    linear-gradient(135deg, #fffefa 0%, #f7f2e9 100%);
+
+  box-shadow: 0 7px 22px rgba(44, 35, 25, 0.045);
+
+  animation: card-float 6s ease-in-out infinite;
+  will-change: transform;
+}
+
+.card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 10% 50%,
+    rgba(215, 25, 32, 0.045),
+    transparent 75%
+  );
+}
+
+.artwork {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 7px;
+
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(241, 233, 218, 0.65) 70%,
+    transparent 100%
+  );
+}
+
+.artwork svg {
+  display: block;
+  width: 100%;
+  max-width: 155px;
+  height: auto;
+  overflow: visible;
+}
+
+.content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 13px 13px 13px 5px;
+}
+
+.number {
+  color: #d71920;
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.13em;
+  white-space: nowrap;
+}
+
+.content h3 {
+  color: #29251f;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.content p {
+  color: #777066;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.detail {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  color: #a69a89;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+/* Lorry continuously travels from right to left. */
+.truckMove {
+  animation: lorry-drive 8s linear infinite;
+  will-change: transform;
+}
+
+.roadDash {
+  animation: road-scroll 1.5s linear infinite;
+}
+
+/* Cloud slowly moves. */
+.cloud {
+  animation: cloud-float 5s ease-in-out infinite;
+}
+
+/* Package lid repeatedly opens and closes. */
+.packageLid {
+  transform-box: fill-box;
+  transform-origin: 0% 100%;
+  animation: package-open 4.5s ease-in-out infinite;
+}
+
+/* Floating sparkles. */
+.sparkle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sparkle 2.4s ease-in-out infinite;
+}
+
+.sparkleSecond {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sparkle 2.4s ease-in-out infinite 1.1s;
+}
+
+/* Customer service sound waves. */
+.soundWave {
+  animation: sound-pulse 1.5s ease-in-out infinite;
+}
+
+.soundWaveSecond {
+  animation: sound-pulse 1.5s ease-in-out infinite 0.45s;
+}
+
+.chatBubble {
+  animation: bubble-float 3s ease-in-out infinite;
+}
+
+/* Heart gently pulses inside the home. */
+.homeHeart {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: heart-pulse 2s ease-in-out infinite;
+}
+
+/* Animation keyframes */
+
+@keyframes card-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes lorry-drive {
+  from {
+    transform: translateX(-145px);
+  }
+
+  to {
+    transform: translateX(190px);
+  }
+}
+
+@keyframes road-scroll {
+  from {
+    stroke-dashoffset: 0;
+  }
+
+  to {
+    stroke-dashoffset: -44;
+  }
+}
+
+@keyframes cloud-float {
+  0%, 100% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(8px);
+  }
+}
+
+@keyframes package-open {
+  0%, 18%, 100% {
+    transform: rotate(0deg);
+  }
+
+  38%, 60% {
+    transform: rotate(-17deg);
+  }
+
+  78% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 0.25;
+    transform: scale(0.75);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes sound-pulse {
+  0%, 100% {
+    opacity: 0.35;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes bubble-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes heart-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.12);
+  }
+}
+
+/* Responsive layout */
+@media (max-width: 1100px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .grid {
+    gap: 10px;
+  }
+
+  .card {
+    min-height: 125px;
+    grid-template-columns: 38% 62%;
+    border-radius: 15px;
+  }
+
+  .content {
+    gap: 6px;
+    padding-right: 9px;
+  }
+
+  .content h3 {
+    font-size: 12px;
+  }
+
+  .content p {
+    font-size: 9px;
+  }
+
+  .detail {
+    font-size: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .truckMove,
+  .roadDash,
+  .cloud,
+  .packageLid,
+  .sparkle,
+  .sparkleSecond,
+  .soundWave,
+  .soundWaveSecond,
+  .chatBubble,
+  .homeHeart {
+    animation: none !important;
+  }
+}

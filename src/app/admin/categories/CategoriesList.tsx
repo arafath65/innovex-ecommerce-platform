@@ -1,11 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import {
   AlertCircle,
   Check,
   ChevronRight,
   Folder,
   FolderTree,
+  ImagePlus,
   Layers3,
   Pencil,
   Plus,
@@ -38,6 +40,7 @@ type Category = {
   id: number;
   name: string;
   slug: string;
+  imageUrl: string | null;
   isActive: boolean;
   children: Subcategory[];
 };
@@ -52,6 +55,10 @@ export default function CategoriesList() {
   const [parentId, setParentId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [categoryImageFile, setCategoryImageFile] =
+    useState<File | null>(null);
+  const [editingCategoryImageFile, setEditingCategoryImageFile] =
+    useState<File | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [editing, setEditing] = useState<{
@@ -59,6 +66,7 @@ export default function CategoriesList() {
     name: string;
     parentId: string;
     isMain: boolean;
+    imageUrl: string | null;
   } | null>(null);
   const [editSaving, setEditSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -122,14 +130,14 @@ export default function CategoriesList() {
   }, [router]);
 
   useEffect(() => {
-  const timer = window.setTimeout(() => {
-    void loadCategories();
-  }, 0);
+    const timer = window.setTimeout(() => {
+      void loadCategories();
+    }, 0);
 
-  return () => {
-    window.clearTimeout(timer);
-  };
-}, [loadCategories]);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [loadCategories]);
 
   const stats = useMemo(() => {
     const subcategories = categories.reduce(
@@ -179,6 +187,93 @@ export default function CategoriesList() {
       }));
   }, [categories, statusFilter]);
 
+  async function uploadCategoryImage(
+    categoryId: number,
+    file: File,
+  ): Promise<string> {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const response = await fetch(
+      `/api/admin/categories/${categoryId}/image`,
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
+
+    if (response.status === 401) {
+      router.push("/admin/login");
+      throw new Error("Your session has expired.");
+    }
+
+    const data: unknown = await response.json();
+    const responseData =
+      data && typeof data === "object"
+        ? (data as Record<string, unknown>)
+        : {};
+
+    if (!response.ok) {
+      throw new Error(
+        typeof responseData.error === "string"
+          ? responseData.error
+          : "Failed to upload category image.",
+      );
+    }
+
+    if (typeof responseData.imageUrl !== "string") {
+      throw new Error("Image uploaded, but the image URL was not returned.");
+    }
+
+    return responseData.imageUrl;
+  }
+
+  async function removeCategoryImage(categoryId: number): Promise<void> {
+    const response = await fetch(
+      `/api/admin/categories/${categoryId}/image`,
+      {
+        method: "DELETE",
+      },
+    );
+
+    if (response.status === 401) {
+      router.push("/admin/login");
+      throw new Error("Your session has expired.");
+    }
+
+    const data: unknown = await response.json();
+    const responseData =
+      data && typeof data === "object"
+        ? (data as Record<string, unknown>)
+        : {};
+
+    if (!response.ok) {
+      throw new Error(
+        typeof responseData.error === "string"
+          ? responseData.error
+          : "Failed to remove category image.",
+      );
+    }
+  }
+
+  function validateCategoryImage(file: File): string | null {
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      return "Use JPG, PNG or WebP images.";
+    }
+
+    if (file.size <= 0 || file.size > 5 * 1024 * 1024) {
+      return "Category image must be between 1 byte and 5 MB.";
+    }
+
+    return null;
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -226,17 +321,57 @@ export default function CategoriesList() {
         );
       }
 
+      const responseData =
+        data && typeof data === "object"
+          ? (data as Record<string, unknown>)
+          : {};
+
+      const createdCategory =
+        responseData.category &&
+        typeof responseData.category === "object"
+          ? (responseData.category as Record<string, unknown>)
+          : {};
+
+      const createdCategoryId = Number(createdCategory.id);
       const wasSubcategory = Boolean(parentId);
+      let imageUploadError = "";
+
+      if (
+        !wasSubcategory &&
+        categoryImageFile &&
+        Number.isSafeInteger(createdCategoryId) &&
+        createdCategoryId > 0
+      ) {
+        try {
+          await uploadCategoryImage(
+            createdCategoryId,
+            categoryImageFile,
+          );
+        } catch (uploadError) {
+          imageUploadError =
+            uploadError instanceof Error
+              ? uploadError.message
+              : "Category image upload failed.";
+        }
+      }
 
       setName("");
       setParentId("");
-      setMessage(
-        wasSubcategory
-          ? "Subcategory created successfully."
-          : "Category created successfully.",
-      );
+      setCategoryImageFile(null);
 
       await loadCategories();
+
+      if (imageUploadError) {
+        setError(
+          `Category created successfully, but its image could not be uploaded: ${imageUploadError}`,
+        );
+      } else {
+        setMessage(
+          wasSubcategory
+            ? "Subcategory created successfully."
+            : "Category created successfully.",
+        );
+      }
     } catch (err) {
       setError(
         err instanceof Error
@@ -255,11 +390,13 @@ export default function CategoriesList() {
 
     setError("");
     setMessage("");
+    setEditingCategoryImageFile(null);
     setEditing({
       id: category.id,
       name: category.name,
       parentId: "",
       isMain: true,
+      imageUrl: category.imageUrl ?? null,
     });
   }
 
@@ -273,11 +410,13 @@ export default function CategoriesList() {
 
     setError("");
     setMessage("");
+    setEditingCategoryImageFile(null);
     setEditing({
       id: child.id,
       name: child.name,
       parentId: String(parentCategoryId),
       isMain: false,
+      imageUrl: null,
     });
   }
 
@@ -286,6 +425,7 @@ export default function CategoriesList() {
       return;
     }
     setEditing(null);
+    setEditingCategoryImageFile(null);
   }
 
   async function handleEditSubmit(
@@ -352,13 +492,22 @@ export default function CategoriesList() {
         );
       }
 
+      if (editing.isMain && editingCategoryImageFile) {
+        await uploadCategoryImage(
+          editing.id,
+          editingCategoryImageFile,
+        );
+      }
+
       setEditing(null);
+      setEditingCategoryImageFile(null);
+      await loadCategories();
+
       setMessage(
         editing.parentId
           ? "Subcategory updated successfully."
           : "Category updated successfully.",
       );
-      await loadCategories();
     } catch (err) {
       setError(
         err instanceof Error
@@ -600,7 +749,7 @@ export default function CategoriesList() {
           </div>
 
           <form onSubmit={handleSubmit} className="p-5 sm:p-6">
-            <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr_auto] lg:items-end">
+            <div className="grid gap-4 lg:grid-cols-4 lg:items-end">
               <Field label="Category / subcategory name" required>
                 <div className="relative">
                   <Tag
@@ -634,6 +783,9 @@ export default function CategoriesList() {
                   value={parentId}
                   onChange={(event) => {
                     setParentId(event.target.value);
+                    if (event.target.value) {
+                      setCategoryImageFile(null);
+                    }
                     if (error || message) {
                       clearFeedback();
                     }
@@ -655,6 +807,41 @@ export default function CategoriesList() {
                     : "Leave empty to create a main category."}
                 </p>
               </Field>
+
+              {!parentId ? (
+                <Field label="Category image (optional)">
+                  <div className="flex h-12 items-center gap-2 rounded-xl border border-black/10 bg-[#fafafa] px-3">
+                    <ImagePlus
+                      size={16}
+                      className="shrink-0 text-[#d71920]"
+                    />
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      disabled={saving}
+                      onChange={(event) => {
+                        const file = event.currentTarget.files?.[0] ?? null;
+                        if (!file) return;
+
+                        const validationError = validateCategoryImage(file);
+                        if (validationError) {
+                          setError(validationError);
+                          event.currentTarget.value = "";
+                          return;
+                        }
+
+                        setCategoryImageFile(file);
+                        clearFeedback();
+                      }}
+                      className="min-w-0 w-full text-[9px] text-black/50 file:mr-2 file:rounded-lg file:border-0 file:bg-[#fff1f2] file:px-2 file:py-1.5 file:text-[9px] file:font-semibold file:text-[#d71920]"
+                    />
+                  </div>
+                  <p className="mt-1.5 truncate text-[8px] text-black/30">
+                    {categoryImageFile?.name ||
+                      "Optional. JPG, PNG or WebP. Maximum 5 MB."}
+                  </p>
+                </Field>
+              ) : null}
 
               <button
                 type="submit"
@@ -821,9 +1008,20 @@ export default function CategoriesList() {
                   <div className="relative overflow-hidden bg-[#111111] px-4 py-4">
                     <div className="absolute right-0 top-0 h-full w-28 bg-[radial-gradient(circle_at_70%_40%,rgba(215,25,32,0.25),transparent_66%)]" />
                     <div className="relative flex items-center gap-3">
-                      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#d71920] text-white shadow-[0_8px_18px_rgba(215,25,32,0.25)]">
-                        <Folder size={18} strokeWidth={2} />
-                      </span>
+                      {category.imageUrl ? (
+                        <Image
+                          src={category.imageUrl}
+                          alt=""
+                          width={40}
+                          height={40}
+                          unoptimized
+                          className="size-10 shrink-0 rounded-xl border border-white/10 object-cover"
+                        />
+                      ) : (
+                        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#d71920] text-white shadow-[0_8px_18px_rgba(215,25,32,0.25)]">
+                          <Folder size={18} strokeWidth={2} />
+                        </span>
+                      )}
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
@@ -1168,6 +1366,92 @@ export default function CategoriesList() {
                     />
                   </div>
                 </Field>
+
+                {editing.isMain ? (
+                  <Field label="Category image (optional)">
+                    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-black/10 bg-[#fafafa] p-3">
+                      {editing.imageUrl ? (
+                        <Image
+                          src={editing.imageUrl}
+                          alt={editing.name}
+                          width={56}
+                          height={56}
+                          unoptimized
+                          className="size-14 rounded-full border border-black/10 object-cover"
+                        />
+                      ) : (
+                        <div className="grid size-14 place-items-center rounded-full bg-[#fff1f2] text-[#d71920]">
+                          <ImagePlus size={20} />
+                        </div>
+                      )}
+
+                      <div className="min-w-0 flex-1">
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          disabled={editSaving}
+                          onChange={(event) => {
+                            const file = event.currentTarget.files?.[0] ?? null;
+                            if (!file) return;
+
+                            const validationError = validateCategoryImage(file);
+                            if (validationError) {
+                              setError(validationError);
+                              event.currentTarget.value = "";
+                              return;
+                            }
+
+                            setEditingCategoryImageFile(file);
+                            clearFeedback();
+                          }}
+                          className="w-full text-[9px] text-black/50 file:mr-2 file:rounded-lg file:border-0 file:bg-[#fff1f2] file:px-2 file:py-1.5 file:text-[9px] file:font-semibold file:text-[#d71920]"
+                        />
+                        <p className="mt-1 truncate text-[8px] text-black/35">
+                          {editingCategoryImageFile?.name ||
+                            (editing.imageUrl
+                              ? "Current category image"
+                              : "No image uploaded")}
+                        </p>
+                      </div>
+
+                      {editing.imageUrl ? (
+                        <button
+                          type="button"
+                          disabled={editSaving}
+                          onClick={async () => {
+                            try {
+                              setEditSaving(true);
+                              await removeCategoryImage(editing.id);
+
+                              setEditing((current) =>
+                                current
+                                  ? { ...current, imageUrl: null }
+                                  : current,
+                              );
+                              setEditingCategoryImageFile(null);
+                              await loadCategories();
+                              setMessage("Category image removed successfully.");
+                            } catch (removeError) {
+                              setError(
+                                removeError instanceof Error
+                                  ? removeError.message
+                                  : "Failed to remove category image.",
+                              );
+                            } finally {
+                              setEditSaving(false);
+                            }
+                          }}
+                          className="rounded-lg border border-red-200 px-2.5 py-2 text-[9px] font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </div>
+                    <p className="mt-1.5 text-[8px] text-black/30">
+                      Leave empty to keep the current image. A new image replaces it.
+                    </p>
+                  </Field>
+                ) : null}
 
                 {editing.isMain ? (
                   <Field label="Parent category">

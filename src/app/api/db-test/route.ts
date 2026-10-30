@@ -5,6 +5,10 @@ import { prisma } from "@/lib/prisma";
 export const runtime = "nodejs";
 
 export async function GET() {
+  if (process.env.NODE_ENV !== "development") {
+    return NextResponse.json({ success: false, message: "Not available." }, { status: 404 });
+  }
+
   try {
     await prisma.$queryRaw`SELECT 1`;
 

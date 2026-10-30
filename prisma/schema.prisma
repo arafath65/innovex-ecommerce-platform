@@ -72,6 +72,13 @@ enum AuditActorType {
   SYSTEM
 }
 
+enum StoreDomainStatus {
+  PENDING
+  VERIFIED
+  ACTIVE
+  DISABLED
+}
+
 model store {
   id               Int                @id @default(autoincrement())
   name             String             @db.VarChar(150)
@@ -97,11 +104,31 @@ model store {
   theme             store_theme?
   heroSlides        hero_slide[]
   auditLogs         audit_log[]
+  domains           store_domain[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([isActive])
+}
+
+
+model store_domain {
+  id                Int               @id @default(autoincrement())
+  storeId           Int
+  hostname          String            @unique @db.VarChar(253)
+  status            StoreDomainStatus @default(PENDING)
+  isPrimary         Boolean           @default(false)
+  verificationToken String?           @db.VarChar(128)
+  verifiedAt        DateTime?
+
+  store store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, status])
+  @@index([storeId, isPrimary])
 }
 
 model store_profile {

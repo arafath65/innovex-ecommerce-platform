@@ -1,36 +1,32 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Innovex Ecommerce Platform
 
-## Getting Started
+Multi-tenant ecommerce storefront and store administration platform built with Next.js, Prisma and MySQL.
 
-First, run the development server:
+## Local development
 
-```bash
+See [docs/LOCAL-DEVELOPMENT.md](docs/LOCAL-DEVELOPMENT.md) for Windows multi-domain testing with:
+
+- `innovexweb.test` — Innovex platform hostname
+- `oscar-trading.test` — Oscar Trading storefront
+- `second-store.test` — another tenant (requires a second active store)
+
+See [docs/PRODUCTION-DEPLOYMENT.md](docs/PRODUCTION-DEPLOYMENT.md) for VPS setup, persistent media storage, custom domain verification, HTTPS, backups and production checks.
+
+## Basic commands
+
+```powershell
+npm install
+npx prisma migrate dev
+npx prisma generate
+npm run seed:local-domains
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Do not commit `.env`, `.env.local`, production credentials or uploaded media. Customer uploads use `MEDIA_STORAGE_ROOT`, which must point outside the application deployment directory.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Production foundation status
 
-## Learn More
+The first foundation pass adds local hostname routing, verified store-domain mappings, persistent filesystem media outside the app release, tenant-scoped image upload/delete checks, security headers, a protected health endpoint, and local/production setup and backup guides. Read `docs/LOCAL-DEVELOPMENT.md` and `docs/PRODUCTION-DEPLOYMENT.md` before applying the migration or deploying.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Production DNS and TLS provisioning are still configured manually in CloudPanel. This project does not yet provide automated certificate provisioning, a distributed rate limiter, or object storage. Product-detail routing also needs a separate review before public launch.
