@@ -252,6 +252,10 @@ export default function HomeHeaderHero({
   const [searchResults, setSearchResults] = useState<HeaderSearchProduct[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [shopAllMenuOpen, setShopAllMenuOpen] = useState(false);
+  const [hoveredCategoryId, setHoveredCategoryId] = useState<number | null>(null);
+  const [menuProducts, setMenuProducts] = useState<HeaderSearchProduct[]>([]);
+  const [menuProductsLoading, setMenuProductsLoading] = useState(false);
   const showSearchDropdown = searchFocused && searchQuery.trim().length >= 2;
 
   /*
@@ -374,6 +378,44 @@ export default function HomeHeaderHero({
       controller.abort();
     };
   }, [searchQuery, searchFocused, store.slug]);
+
+  // Load the latest store products for the Shop All hover panel.
+  useEffect(() => {
+    if (!shopAllMenuOpen) return;
+
+    const controller = new AbortController();
+
+    const loadMenuProducts = async () => {
+      setMenuProductsLoading(true);
+      try {
+        const params = new URLSearchParams({ store: store.slug, limit: "9" });
+        if (hoveredCategoryId !== null) {
+          params.set("categoryId", String(hoveredCategoryId));
+        }
+
+        const response = await fetch(
+          `/api/storefront-menu-products?${params.toString()}`,
+          { cache: "no-store", signal: controller.signal },
+        );
+
+        const data: { success?: boolean; products?: HeaderSearchProduct[] } =
+          await response.json();
+
+        if (response.ok && data.success) {
+          setMenuProducts(Array.isArray(data.products) ? data.products.slice(0, 8) : []);
+        } else {
+          setMenuProducts([]);
+        }
+      } catch {
+        if (!controller.signal.aborted) setMenuProducts([]);
+      } finally {
+        if (!controller.signal.aborted) setMenuProductsLoading(false);
+      }
+    };
+
+    void loadMenuProducts();
+    return () => controller.abort();
+  }, [shopAllMenuOpen, hoveredCategoryId, store.slug]);
 
   const fallbackSrc = normalizeImageUrl(fallbackImage);
 
@@ -1125,94 +1167,159 @@ export default function HomeHeaderHero({
 
         </form>
 
-        {/* Black navigation bar */}
-
+        {/* Black navigation with a Shop All mega menu */}
         <nav
-
           aria-label="Main navigation"
-
-          className="border-t border-white/10 bg-[#111111] text-white"
-
+          className="relative z-50 border-t border-white/10 bg-[#111111] text-white"
+          onMouseLeave={() => {
+            setShopAllMenuOpen(false);
+            setHoveredCategoryId(null);
+          }}
         >
-
-          <div className="mx-auto flex max-w-[1440px] items-center gap-6 overflow-x-auto px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.12em] sm:px-7 lg:gap-7 lg:px-12">
-
-            <Link
-
-              href="/shop"
-
-              className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap text-[#ff4148]"
-
+          <div className="mx-auto flex max-w-[1440px] items-center px-4 sm:px-7 lg:px-12">
+            <button
+              type="button"
+              aria-expanded={shopAllMenuOpen}
+              aria-controls="shop-all-mega-menu"
+              onMouseEnter={() => {
+                setShopAllMenuOpen(true);
+                setHoveredCategoryId(null);
+              }}
+              onFocus={() => setShopAllMenuOpen(true)}
+              onClick={() => setShopAllMenuOpen((open) => !open)}
+              className="inline-flex min-h-[44px] shrink-0 items-center gap-2 whitespace-nowrap py-3 pr-6 text-[10px] font-bold uppercase tracking-[0.12em] text-[#ff4148] transition-colors hover:text-white"
             >
-
               <Menu size={15} />
-
-              Shop all
-
-            </Link>
-
-            <Link
-
-              href="/"
-
-              className="shrink-0 whitespace-nowrap text-white transition-colors hover:text-[#ff4148]"
-
-            >
-
-              Home
-
-            </Link>
-
-            <Link
-
-              href="/shop"
-
-              className="shrink-0 whitespace-nowrap text-white/65 transition-colors hover:text-white"
-
-            >
-
-              New arrivals
-
-            </Link>
-
-            {categories.slice(0, 5).map((category) => (
-
-              <Link
-
-                key={category.id}
-
-                href={`/shop?category=${encodeURIComponent(category.slug)}`}
-
-                className="shrink-0 whitespace-nowrap text-white/65 transition-colors hover:text-white"
-
-              >
-
-                {category.name}
-
-              </Link>
-
-            ))}
-
-            {hasSpecialOffers && (
-
-              <Link
-
-                href="/shop"
-
-                className="shrink-0 whitespace-nowrap font-bold"
-
-                style={{ color: store.accentColor }}
-
-              >
-
-                Special offers
-
-              </Link>
-
-            )}
-
+              Shop All
+            </button>
           </div>
 
+          {shopAllMenuOpen && (
+            <div
+              id="shop-all-mega-menu"
+              className="absolute left-2 top-full z-50 mt-1 w-[min(900px,calc(100vw-16px))] max-h-[58vh] overflow-hidden rounded-lg border border-white/10 bg-[#171717] shadow-[0_18px_38px_rgba(0,0,0,0.32)] sm:left-4"
+              onMouseEnter={() => setShopAllMenuOpen(true)}
+            >
+              <div className="grid grid-cols-[minmax(150px,30%)_minmax(0,1fr)] gap-4 p-4 sm:gap-5 sm:p-5">
+                <div className="min-h-0 border-r border-white/10 pr-2">
+                  <p className="mb-2 text-[8px] font-bold uppercase tracking-[0.16em] text-white/40">
+                    Browse categories
+                  </p>
+                  <Link
+                    href="/shop"
+                    onClick={() => setShopAllMenuOpen(false)}
+                    onMouseEnter={() => setHoveredCategoryId(null)}
+                    className={`mb-1 flex items-center justify-between rounded-md px-2 py-2 text-[11px] font-semibold transition-colors ${
+                      hoveredCategoryId === null
+                        ? "bg-white/10 text-white"
+                        : "text-white/65 hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    All products
+                    <ArrowRight size={13} />
+                  </Link>
+                  <div className="max-h-[48vh] space-y-0.5 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent]">
+                    {categories.map((category) => (
+                      <Link
+                        key={category.id}
+                        href={`/shop?category=${encodeURIComponent(category.slug)}`}
+                        onClick={() => setShopAllMenuOpen(false)}
+                        onMouseEnter={() => setHoveredCategoryId(category.id)}
+                        onFocus={() => setHoveredCategoryId(category.id)}
+                        className={`flex items-center justify-between gap-1.5 rounded-md px-2 py-1.5 text-[10px] leading-4 transition-colors ${
+                          hoveredCategoryId === category.id
+                            ? "bg-white/10 font-semibold text-white"
+                            : "text-white/65 hover:bg-white/5 hover:text-white"
+                        }`}
+                      >
+                        <span className="min-w-0 truncate">{category.name}</span>
+                        <ChevronRight size={13} className="shrink-0 text-white/35" />
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="min-w-0 overflow-y-auto overscroll-contain">
+                  <div className="mb-2 flex items-end justify-between gap-2">
+                    <div>
+                      <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-[#ff4148]">
+                        {hoveredCategoryId === null ? "Just added" : "Fresh picks"}
+                      </p>
+                      <h3 className="mt-0.5 text-sm font-medium tracking-tight text-white">
+                        {hoveredCategoryId === null
+                          ? "Newly added products"
+                          : categories.find((category) => category.id === hoveredCategoryId)?.name ?? "Newly added products"}
+                      </h3>
+                    </div>
+                    <Link
+                      href={
+                        hoveredCategoryId === null
+                          ? "/shop?sort=newest"
+                          : `/shop?category=${encodeURIComponent(categories.find((category) => category.id === hoveredCategoryId)?.slug ?? "")}&sort=newest`
+                      }
+                      onClick={() => setShopAllMenuOpen(false)}
+                      className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.08em] text-white/60 transition-colors hover:text-white"
+                    >
+                      View all <ArrowRight size={12} className="ml-1 inline" />
+                    </Link>
+                  </div>
+
+                  {menuProductsLoading ? (
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {Array.from({ length: 9 }).map((_, index) => (
+                        <div key={index} className="animate-pulse">
+                          <div className="aspect-square rounded-lg bg-white/10" />
+                          <div className="mt-2 h-2 w-4/5 rounded bg-white/10" />
+                          <div className="mt-2 h-2 w-2/5 rounded bg-white/10" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : menuProducts.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {menuProducts.slice(0, 9).map((product) => {
+                        const productImageUrl = normalizeImageUrl(product.images[0]?.imageUrl);
+                        return (
+                          <Link
+                            key={product.id}
+                            href={`/product/${encodeURIComponent(product.slug)}`}
+                            onClick={() => setShopAllMenuOpen(false)}
+                            className="group min-w-0 rounded-md border border-white/[0.07] bg-white/[0.035] p-1 transition-colors hover:bg-white/[0.08]"
+                          >
+                            <div className="relative aspect-square w-full overflow-hidden rounded bg-white">
+                              {productImageUrl ? (
+                                <Image
+                                  src={productImageUrl}
+                                  alt={product.images[0]?.altText || product.name}
+                                  fill
+                                  unoptimized={isUnoptimizedUrl(productImageUrl)}
+                                  sizes="(max-width: 640px) 45vw, 180px"
+                                  className="object-contain p-0 transition-transform duration-300 group-hover:scale-105"
+                                />
+                              ) : (
+                                <div className="grid h-full place-items-center text-[10px] text-black/40">
+                                  No image
+                                </div>
+                              )}
+                            </div>
+                            <p className="mt-1 line-clamp-2 min-h-6 text-[9px] font-medium leading-3 text-white/85">
+                              {product.name}
+                            </p>
+                            <p className="mt-0 text-[9px] font-semibold leading-3 text-white">
+                              {formatSearchPrice(product.price, store.currency)}
+                            </p>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-white/10 px-4 py-8 text-center text-xs text-white/45">
+                      No newly added products in this category yet.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </nav>
 
       </m.header>

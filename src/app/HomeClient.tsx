@@ -4,7 +4,6 @@ import Link from "next/link";
 import AnimatedBenefitCards from "./AnimatedBenefitCards";
 import CategoryMarquee from "./CategoryMarquee";
 import FlashSaleCarousel from "./FlashSaleCarousel";
-import KitchenCompanion from "./KitchenCompanion";
 
 import {
   ArrowRight,
@@ -149,6 +148,19 @@ tiktokUrl: string | null;
 
 };
 
+type HomepageEditorial = {
+  isEnabled: boolean;
+  eyebrow: string;
+  title: string;
+  description: string;
+  buttonText: string;
+  buttonUrl: string;
+  image1Url: string | null; image1Alt: string | null; image1Link: string | null;
+  image2Url: string | null; image2Alt: string | null; image2Link: string | null;
+  image3Url: string | null; image3Alt: string | null; image3Link: string | null;
+  image4Url: string | null; image4Alt: string | null; image4Link: string | null;
+};
+
 type HomeClientProps = {
 
   store: StoreInfo;
@@ -163,6 +175,10 @@ type HomeClientProps = {
 
   heroSlides: HeroSlide[];
 
+
+  homepageEditorial: HomepageEditorial | null;
+
+  shopHref: string;
 };
 
 function imageUrl(value: string | null | undefined) {
@@ -184,6 +200,22 @@ function imageUrl(value: string | null | undefined) {
   }
 
   return url.startsWith("/") ? url : `/${url}`;
+}
+
+function resolveStorefrontHref(
+  value: string | null | undefined,
+  shopHref: string,
+  storeSlug: string,
+) {
+  const href = value?.trim() || "/shop";
+  if (/^https?:\/\//i.test(href)) return href;
+  if (!href.startsWith("/") || href.startsWith("//")) return shopHref;
+
+  const previewPrefix = `/${storeSlug}`;
+  const isSlugPreview = shopHref.startsWith(`${previewPrefix}/`);
+  if (!isSlugPreview) return href;
+  if (href === previewPrefix || href.startsWith(`${previewPrefix}/`)) return href;
+  return `${previewPrefix}${href === "/" ? "" : href}`;
 }
 
 function productImage(product: Product) {
@@ -332,7 +364,7 @@ function ProductCard({
 
   return (
 
-    <article className="group min-w-0">
+    <article className="group min-w-0 overflow-hidden rounded-xl border border-black/[0.055] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.025)] transition-shadow hover:shadow-sm">
 
       <Link
 
@@ -344,7 +376,7 @@ function ProductCard({
 
         <div
 
-          className="relative aspect-[4/5] overflow-hidden rounded-2xl"
+          className="relative aspect-[1.42/1] overflow-hidden rounded-xl border border-black/[0.055] bg-white"
 
           style={{ backgroundColor: surfaceColor }}
 
@@ -356,7 +388,7 @@ function ProductCard({
 
             alt={image.alt}
 
-            className="h-full w-full object-contain p-5 transition duration-500 group-hover:scale-[1.045] sm:p-7"
+            className="h-full w-full object-contain p-1.5 transition duration-500 group-hover:scale-[1.045] sm:p-2"
 
           />
 
@@ -399,7 +431,7 @@ function ProductCard({
 
       </Link>
 
-      <div className="pt-3">
+      <div className="px-2.5 pb-3 pt-2">
 
         <p
 
@@ -458,6 +490,7 @@ export default function HomeClient({
   flashSaleProducts,
   newArrivalProducts,
   heroSlides,
+  homepageEditorial,
   shopHref,
 }: HomeClientProps) {
 
@@ -477,7 +510,25 @@ const mutedColor = store.mutedColor;
 
   );
 
-  const collectionProducts = products.slice(0, 4);
+  // Interleave products by category so the homepage shows a varied collection
+  // rather than a full row dominated by one category when possible.
+  const categoryQueues = new Map<string, Product[]>();
+  for (const product of newArrivalProducts) {
+    const categoryKey = product.category?.slug ?? "uncategorized";
+    const queue = categoryQueues.get(categoryKey) ?? [];
+    queue.push(product);
+    categoryQueues.set(categoryKey, queue);
+  }
+
+  const mixedProducts: Product[] = [];
+  while (mixedProducts.length < 15 && categoryQueues.size > 0) {
+    for (const [categoryKey, queue] of categoryQueues) {
+      const nextProduct = queue.shift();
+      if (nextProduct) mixedProducts.push(nextProduct);
+      if (queue.length === 0) categoryQueues.delete(categoryKey);
+      if (mixedProducts.length >= 15) break;
+    }
+  }
 
   const whatsappHref = store.whatsapp
 
@@ -538,27 +589,104 @@ const mutedColor = store.mutedColor;
   />
 )}
 
-      {/* New Arrivals */}
+      {/* Store-configurable editorial hero with four animated image panels */}
+      {homepageEditorial?.isEnabled &&
+        [
+          homepageEditorial.image1Url,
+          homepageEditorial.image2Url,
+          homepageEditorial.image3Url,
+          homepageEditorial.image4Url,
+        ].every(Boolean) && (
+          <section className="editorial-hero-wrap px-4 py-10 sm:px-7 sm:py-14 lg:px-12">
+            <div className="editorial-hero mx-auto max-w-[1440px]">
+              <div className="editorial-hero-copy">
+                {homepageEditorial.eyebrow.trim() ? (
+                  <p className="editorial-hero-eyebrow" style={{ color: primaryColor }}>
+                    <span aria-hidden="true" />
+                    {homepageEditorial.eyebrow}
+                    <span aria-hidden="true" />
+                  </p>
+                ) : null}
+                {homepageEditorial.title.trim() ? (
+                  <h2 className="editorial-hero-title">
+                    {homepageEditorial.title}
+                  </h2>
+                ) : null}
+                {homepageEditorial.description.trim() ? (
+                  <p className="editorial-hero-description">
+                    {homepageEditorial.description}
+                  </p>
+                ) : null}
+                {homepageEditorial.buttonText.trim() ? (
+                  <Link
+                    href={resolveStorefrontHref(homepageEditorial.buttonUrl, shopHref, store.slug)}
+                    className="editorial-hero-button"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    {homepageEditorial.buttonText}
+                    <ArrowRight size={16} />
+                  </Link>
+                ) : null}
+              </div>
+
+              <div className="editorial-hero-gallery">
+                {[
+                  { url: homepageEditorial.image1Url, alt: homepageEditorial.image1Alt, link: homepageEditorial.image1Link },
+                  { url: homepageEditorial.image2Url, alt: homepageEditorial.image2Alt, link: homepageEditorial.image2Link },
+                  { url: homepageEditorial.image3Url, alt: homepageEditorial.image3Alt, link: homepageEditorial.image3Link },
+                  { url: homepageEditorial.image4Url, alt: homepageEditorial.image4Alt, link: homepageEditorial.image4Link },
+                ].map((item, index) => {
+                  const image = (
+                    <div className={`editorial-hero-image editorial-hero-image-${index + 1}`}>
+                      <StoreImage
+                        src={imageUrl(item.url)}
+                        alt={item.alt?.trim() || `${store.displayName} collection image ${index + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  );
+
+                  return item.link?.trim() ? (
+                    <Link
+                      key={index}
+                      href={resolveStorefrontHref(item.link, shopHref, store.slug)}
+                      className={`editorial-hero-image-link editorial-hero-image-link-${index + 1}`}
+                    >
+                      {image}
+                    </Link>
+                  ) : (
+                    <div key={index} className={`editorial-hero-image-link editorial-hero-image-link-${index + 1}`}>
+                      {image}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        )}
+
+
+      {/* Mixed product collection: 3 rows with up to 5 products per row */}
       <section className="bg-white py-12 sm:py-16">
         <div className="mx-auto max-w-[1440px] px-4 sm:px-7 lg:px-12">
-          <div className="mb-8 flex items-end justify-between gap-4 sm:mb-10">
-            <div>
+          <div className="mb-8 flex flex-col items-center justify-between gap-4 text-center sm:mb-10">
+            <div className="flex flex-col items-center">
               <p
                 className="text-[10px] font-semibold uppercase tracking-[0.2em]"
                 style={{ color: primaryColor }}
               >
-                Just landed
+                A little of everything
               </p>
               <h2 className="mt-2 text-2xl font-medium tracking-[-0.04em] text-[#292B25] sm:text-3xl">
-                New Arrivals
+                Explore Our Collection
               </h2>
               <p className="mt-2 max-w-lg text-xs leading-5 text-[#77776D] sm:text-sm">
-                Be among the first to discover our latest additions for your home.
+                Discover a thoughtful mix of products for your kitchen and home.
               </p>
             </div>
 
             <Link
-              href="/shop"
+              href={shopHref}
               className="inline-flex shrink-0 items-center gap-2 text-xs font-medium"
               style={{ color: primaryColor }}
             >
@@ -568,8 +696,8 @@ const mutedColor = store.mutedColor;
           </div>
 
           {newArrivalProducts.length > 0 ? (
-            <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-10 lg:grid-cols-4 lg:gap-x-7">
-              {newArrivalProducts.slice(0, 8).map((product) => (
+            <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:grid-cols-3 sm:gap-x-5 sm:gap-y-9 lg:grid-cols-5 lg:gap-x-6">
+              {mixedProducts.slice(0, 15).map((product) => (
                 <ProductCard
                   key={product.id}
                   product={product}
@@ -599,183 +727,6 @@ const mutedColor = store.mutedColor;
             </div>
           )}
         </div>
-      </section>
-
-      {/* Oscar Trading helpful guides */}
-      {store.slug.toLowerCase() === "oscar-trading" && (
-        <KitchenCompanion primaryColor={primaryColor} shopHref={shopHref} />
-      )}
-
-      {/* Editorial collection banner */}
-
-      {collectionProducts.length > 0 && (
-
-        <section className="px-4 py-12 sm:px-7 sm:py-16 lg:px-12">
-
-          <div
-
-            className="mx-auto grid max-w-[1440px] overflow-hidden rounded-3xl sm:grid-cols-2"
-
-            style={{ backgroundColor: surfaceColor }}
-
-          >
-
-            <div className="flex flex-col items-start justify-center px-6 py-10 sm:px-10 sm:py-14 lg:px-14">
-
-              <p
-
-                className="text-[10px] font-semibold uppercase tracking-[0.2em]"
-
-                style={{ color: primaryColor }}
-
-              >
-
-                Everyday, elevated
-
-              </p>
-
-              <h2 className="mt-3 max-w-md text-3xl font-medium leading-tight tracking-[-0.04em] text-[#292B25] sm:text-4xl">
-
-                The little things that make a kitchen feel like yours.
-
-              </h2>
-
-              <p className="mt-4 max-w-md text-sm leading-7 text-[#77776D]">
-
-                Explore practical pieces chosen for everyday meals, shared
-
-                moments and the routines that bring us together.
-
-              </p>
-
-              <Link
-
-                href="/shop"
-
-                className="mt-6 inline-flex items-center gap-2 rounded-full px-6 py-3 text-xs font-semibold text-white"
-
-                style={{ backgroundColor: primaryColor }}
-
-              >
-
-                Discover the collection
-
-                <ArrowRight size={15} />
-
-              </Link>
-
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 p-3 sm:p-4">
-
-              {collectionProducts.slice(0, 4).map((product) => {
-
-                const image = productImage(product);
-
-                return (
-
-                  <Link
-
-                    key={product.id}
-
-                    href={`/product/${encodeURIComponent(product.slug)}`}
-
-                    className="group overflow-hidden rounded-2xl bg-white"
-
-                  >
-
-                    <div className="aspect-square overflow-hidden">
-
-                      <StoreImage
-
-                        src={image.src}
-
-                        alt={image.alt}
-
-                        className="h-full w-full object-contain p-4 transition duration-500 group-hover:scale-105 sm:p-6"
-
-                      />
-
-                    </div>
-
-                    <div className="px-3 pb-3">
-
-                      <p className="line-clamp-1 text-xs font-medium text-[#292B25]">
-
-                        {product.name}
-
-                      </p>
-
-                      <p className="mt-1 text-[11px] text-[#77776D]">
-
-                        {formatPrice(product.price, store.currency)}
-
-                      </p>
-
-                    </div>
-
-                  </Link>
-
-                );
-
-              })}
-
-            </div>
-
-          </div>
-
-        </section>
-
-      )}
-
-      {/* About */}
-
-      <section id="about" className="px-4 py-10 sm:px-7 sm:py-14 lg:px-12">
-
-        <div className="mx-auto max-w-3xl text-center">
-
-          <p
-
-            className="text-[10px] font-semibold uppercase tracking-[0.2em]"
-
-            style={{ color: primaryColor }}
-
-          >
-
-            Welcome to {store.displayName}
-
-          </p>
-
-          <h2 className="mt-3 text-2xl font-medium tracking-[-0.04em] text-[#292B25] sm:text-3xl">
-
-            A little more joy in your everyday kitchen.
-
-          </h2>
-
-          <p className="mt-4 text-sm leading-7 text-[#77776D]">
-
-            {store.aboutText || store.description}
-
-          </p>
-
-          <Link
-
-            href="/shop"
-
-            className="mt-6 inline-flex items-center gap-2 text-xs font-semibold"
-
-            style={{ color: primaryColor }}
-
-          >
-
-            Get to know our collection
-
-            <ArrowRight size={15} />
-
-          </Link>
-
-        </div>
-
       </section>
 
       {/* Footer */}

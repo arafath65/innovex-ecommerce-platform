@@ -73,6 +73,11 @@ const navItems: Array<{
     icon: "categories",
   },
   {
+    label: "Homepage",
+    href: "/admin/homepage",
+    icon: "spark",
+  },
+  {
     label: "Orders",
     icon: "orders",
     soon: true,

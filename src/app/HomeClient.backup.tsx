@@ -1,0 +1,1028 @@
+import HomeHeaderHero from "./HomeHeaderHero";
+import Image from "next/image";
+import Link from "next/link";
+import AnimatedBenefitCards from "./AnimatedBenefitCards";
+import CategoryMarquee from "./CategoryMarquee";
+import FlashSaleCarousel from "./FlashSaleCarousel";
+
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Clock3,
+  Headphones,
+  Mail,
+  ShoppingBag,
+} from "lucide-react";
+
+type ProductImage = {
+
+  id: number;
+
+  imageUrl: string;
+
+  altText: string | null;
+
+  isPrimary: boolean;
+
+  sortOrder: number;
+
+};
+
+type Product = {
+
+  id: number;
+
+  name: string;
+
+  slug: string;
+
+  price: string;
+
+  compareAtPrice: string | null;
+
+  shortDescription: string | null;
+
+  isFeatured: boolean;
+
+  isAvailable: boolean;
+
+  createdAt: string;
+
+  category: {
+
+    id: number;
+
+    name: string;
+
+    slug: string;
+
+  } | null;
+
+  images: ProductImage[];
+
+};
+
+type Category = {
+
+  id: number;
+
+  name: string;
+
+  slug: string;
+
+  description: string | null;
+
+  imageUrl: string | null;
+
+  fallbackImageUrl: string | null;
+  productCount: number;
+
+};
+
+type HeroSlide = {
+
+  id: number;
+
+  imageUrl: string;
+
+  eyebrow: string | null;
+
+  title: string | null;
+
+  accentText: string | null;
+
+  description: string | null;
+
+  buttonText: string | null;
+
+  buttonUrl: string | null;
+
+  offerPercent: number | null;
+
+};
+
+type StoreInfo = {
+
+  slug: string;
+  facebookUrl: string | null;
+instagramUrl: string | null;
+tiktokUrl: string | null;
+
+  name: string;
+
+  displayName: string;
+
+  tagline: string;
+
+  description: string;
+
+  aboutText: string | null;
+
+  logoUrl: string | null;
+
+  phone: string | null;
+
+  whatsapp: string | null;
+
+  email: string | null;
+
+  currency: string;
+
+  primaryColor: string;
+
+  secondaryColor: string;
+
+  accentColor: string;
+
+  backgroundColor: string;
+
+  surfaceColor: string;
+
+  textColor: string;
+
+  mutedColor: string;
+
+  heroOfferPercent: number;
+
+  announcementMessages?: string[];
+
+};
+
+type HomepageEditorial = {
+  isEnabled: boolean;
+  eyebrow: string;
+  title: string;
+  description: string;
+  buttonText: string;
+  buttonUrl: string;
+  image1Url: string | null; image1Alt: string | null; image1Link: string | null;
+  image2Url: string | null; image2Alt: string | null; image2Link: string | null;
+  image3Url: string | null; image3Alt: string | null; image3Link: string | null;
+  image4Url: string | null; image4Alt: string | null; image4Link: string | null;
+};
+
+type HomeClientProps = {
+
+  store: StoreInfo;
+
+  categories: Category[];
+
+  products: Product[];
+
+  flashSaleProducts: Product[];
+
+  newArrivalProducts: Product[];
+
+  heroSlides: HeroSlide[];
+
+
+  homepageEditorial: HomepageEditorial | null;
+
+  shopHref: string;
+};
+
+function imageUrl(value: string | null | undefined) {
+  if (!value) return "";
+
+  let url = value.trim().replace(/\\/g, "/");
+
+  if (/^(https?:\/\/|data:|blob:)/i.test(url)) {
+    return url;
+  }
+
+  url = url
+    .replace(/^\.\//, "")
+    .replace(/^\/?public\//i, "");
+
+  const publicIndex = url.toLowerCase().lastIndexOf("/public/");
+  if (publicIndex >= 0) {
+    url = url.slice(publicIndex + 8);
+  }
+
+  return url.startsWith("/") ? url : `/${url}`;
+}
+
+function resolveStorefrontHref(
+  value: string | null | undefined,
+  shopHref: string,
+  storeSlug: string,
+) {
+  const href = value?.trim() || "/shop";
+  if (/^https?:\/\//i.test(href)) return href;
+  if (!href.startsWith("/") || href.startsWith("//")) return shopHref;
+
+  const previewPrefix = `/${storeSlug}`;
+  const isSlugPreview = shopHref.startsWith(`${previewPrefix}/`);
+  if (!isSlugPreview) return href;
+  if (href === previewPrefix || href.startsWith(`${previewPrefix}/`)) return href;
+  return `${previewPrefix}${href === "/" ? "" : href}`;
+}
+
+function productImage(product: Product) {
+
+  const image =
+
+    product.images.find((item) => item.isPrimary) ??
+
+    product.images[0];
+
+  return {
+
+    src: imageUrl(image?.imageUrl),
+
+    alt: image?.altText || product.name,
+
+  };
+
+}
+
+function formatPrice(value: string | number, currency: string) {
+
+  const amount = Number(value);
+
+  if (!Number.isFinite(amount)) return `${currency} 0.00`;
+
+  try {
+
+    return new Intl.NumberFormat("en-LK", {
+
+      style: "currency",
+
+      currency,
+
+      maximumFractionDigits: 2,
+
+    }).format(amount);
+
+  } catch {
+
+    return `${currency} ${amount.toLocaleString("en-LK", {
+
+      minimumFractionDigits: 2,
+
+      maximumFractionDigits: 2,
+
+    })}`;
+
+  }
+
+}
+
+function discountPercent(product: Product) {
+
+  const price = Number(product.price);
+
+  const oldPrice = Number(product.compareAtPrice);
+
+  if (
+
+    !Number.isFinite(price) ||
+
+    !Number.isFinite(oldPrice) ||
+
+    oldPrice <= price
+
+  ) {
+
+    return 0;
+
+  }
+
+  return Math.round(((oldPrice - price) / oldPrice) * 100);
+
+}
+
+function categoryLink(slug: string) {
+
+  return `/shop?category=${encodeURIComponent(slug)}`;
+
+}
+
+function StoreImage({
+  src,
+  alt,
+  className,
+}: {
+  src: string;
+  alt: string;
+  className: string;
+}) {
+  if (!src) {
+    return (
+      <div
+        className={`grid place-items-center ${className}`}
+        aria-label="Product image unavailable"
+      >
+        <ShoppingBag className="h-8 w-8 text-black/20" />
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      width={1200}
+      height={1200}
+      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+      unoptimized={/^(https?:\/\/|data:|blob:)/i.test(src)}
+      className={className}
+      loading="lazy"
+    />
+  );
+}
+
+function ProductCard({
+
+  product,
+
+  currency,
+
+  primaryColor,
+
+  surfaceColor,
+
+  mutedColor,
+
+}: {
+
+  product: Product;
+
+  currency: string;
+
+  primaryColor: string;
+
+  surfaceColor: string;
+
+  mutedColor: string;
+
+}) {
+
+  const image = productImage(product);
+
+  const discount = discountPercent(product);
+
+  return (
+
+    <article className="group min-w-0">
+
+      <Link
+
+        href={`/product/${encodeURIComponent(product.slug)}`}
+
+        className="block"
+
+      >
+
+        <div
+
+          className="relative aspect-[4/5] overflow-hidden rounded-2xl"
+
+          style={{ backgroundColor: surfaceColor }}
+
+        >
+
+          <StoreImage
+
+            src={image.src}
+
+            alt={image.alt}
+
+            className="h-full w-full object-contain p-5 transition duration-500 group-hover:scale-[1.045] sm:p-7"
+
+          />
+
+          <span
+            className="absolute left-3 top-3 rounded-full px-3 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-white shadow-sm"
+            style={{ backgroundColor: primaryColor }}
+          >
+            New
+          </span>
+
+          {discount > 0 && (
+            <span className="absolute right-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[9px] font-semibold text-[#292B25] shadow-sm">
+              Save {discount}%
+            </span>
+          )}
+
+          {!product.isAvailable && (
+
+            <span className="absolute bottom-3 left-3 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-semibold text-black/60 shadow-sm">
+
+              Currently unavailable
+
+            </span>
+
+          )}
+
+          <span
+
+            className="absolute bottom-3 right-3 grid size-10 translate-y-2 place-items-center rounded-full bg-white text-black opacity-0 shadow-md transition duration-300 group-hover:translate-y-0 group-hover:opacity-100"
+
+            aria-hidden="true"
+
+          >
+
+            <ArrowUpRight size={17} />
+
+          </span>
+
+        </div>
+
+      </Link>
+
+      <div className="pt-3">
+
+        <p
+
+          className="text-[10px] font-medium uppercase tracking-[0.14em]"
+
+          style={{ color: mutedColor }}
+
+        >
+
+          {product.category?.name ?? "Kitchen essentials"}
+
+        </p>
+
+        <Link href={`/product/${encodeURIComponent(product.slug)}`}>
+
+          <h3 className="mt-1.5 line-clamp-2 min-h-10 text-sm font-medium leading-5 text-[#292B25] transition group-hover:text-[#65734D]">
+
+            {product.name}
+
+          </h3>
+
+        </Link>
+
+        <div className="mt-2 flex flex-wrap items-baseline gap-2">
+
+          <span className="text-sm font-semibold text-[#292B25]">
+
+            {formatPrice(product.price, currency)}
+
+          </span>
+
+          {discount > 0 && product.compareAtPrice && (
+
+            <span className="text-xs text-black/35 line-through">
+
+              {formatPrice(product.compareAtPrice, currency)}
+
+            </span>
+
+          )}
+
+        </div>
+
+      </div>
+
+    </article>
+
+  );
+
+}
+
+export default function HomeClient({
+  store,
+  categories,
+  products,
+  flashSaleProducts,
+  newArrivalProducts,
+  heroSlides,
+  homepageEditorial,
+  shopHref,
+}: HomeClientProps) {
+
+  const primaryColor = store.primaryColor;
+const surfaceColor = store.surfaceColor;
+const mutedColor = store.mutedColor;
+
+  const fallbackHeroImage = products[0]
+
+  ? productImage(products[0]).src
+
+  : "";
+
+  const dealProducts = products.filter(
+
+    (product) => discountPercent(product) > 0,
+
+  );
+
+
+  const whatsappHref = store.whatsapp
+
+    ? `https://wa.me/${store.whatsapp.replace(/\D/g, "")}`
+
+    : null;
+
+  return (
+
+    <main
+
+      className="min-h-screen"
+
+      style={{
+
+        backgroundColor: store.backgroundColor,
+
+        color: store.textColor,
+
+      }}
+
+    >
+
+      <HomeHeaderHero
+        store={store}
+        categories={categories}
+        heroSlides={heroSlides}
+        fallbackImage={fallbackHeroImage}
+        hasSpecialOffers={dealProducts.length > 0}
+      />
+
+      {/* Benefits */}
+
+      <AnimatedBenefitCards />
+
+      {/* Categories */}
+<CategoryMarquee
+  categories={categories
+    .filter((category) => Boolean(imageUrl(category.imageUrl)))
+    .map((category) => ({
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      imageUrl: imageUrl(category.imageUrl),
+      productCount: category.productCount,
+    }))}
+  primaryColor={primaryColor}
+/>
+
+{/* Flash Sale */}
+{flashSaleProducts.length > 0 && (
+  <FlashSaleCarousel
+    products={flashSaleProducts}
+    currency={store.currency}
+    primaryColor={primaryColor}
+    surfaceColor={surfaceColor}
+    mutedColor={mutedColor}
+  />
+)}
+
+      {/* New Arrivals */}
+      <section className="bg-white py-12 sm:py-16">
+        <div className="mx-auto max-w-[1440px] px-4 sm:px-7 lg:px-12">
+          <div className="mb-8 flex items-end justify-between gap-4 sm:mb-10">
+            <div>
+              <p
+                className="text-[10px] font-semibold uppercase tracking-[0.2em]"
+                style={{ color: primaryColor }}
+              >
+                Just landed
+              </p>
+              <h2 className="mt-2 text-2xl font-medium tracking-[-0.04em] text-[#292B25] sm:text-3xl">
+                New Arrivals
+              </h2>
+              <p className="mt-2 max-w-lg text-xs leading-5 text-[#77776D] sm:text-sm">
+                Be among the first to discover our latest additions for your home.
+              </p>
+            </div>
+
+            <Link
+              href="/shop"
+              className="inline-flex shrink-0 items-center gap-2 text-xs font-medium"
+              style={{ color: primaryColor }}
+            >
+              View all
+              <ArrowRight size={15} />
+            </Link>
+          </div>
+
+          {newArrivalProducts.length > 0 ? (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-10 lg:grid-cols-4 lg:gap-x-7">
+              {newArrivalProducts.slice(0, 8).map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  currency={store.currency}
+                  primaryColor={primaryColor}
+                  surfaceColor={surfaceColor}
+                  mutedColor={mutedColor}
+                />
+              ))}
+            </div>
+          ) : (
+            <div
+              className="rounded-3xl px-5 py-14 text-center"
+              style={{ backgroundColor: surfaceColor }}
+            >
+              <ShoppingBag
+                size={30}
+                strokeWidth={1.2}
+                className="mx-auto text-black/30"
+              />
+              <h3 className="mt-4 text-lg font-medium text-[#292B25]">
+                New discoveries are on the way
+              </h3>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#77776D]">
+                Check back soon to see the latest additions to our collection.
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Store-configurable editorial collection banner */}
+      {homepageEditorial?.isEnabled &&
+        [
+          homepageEditorial.image1Url,
+          homepageEditorial.image2Url,
+          homepageEditorial.image3Url,
+          homepageEditorial.image4Url,
+        ].every(Boolean) && (
+          <section className="px-4 py-12 sm:px-7 sm:py-16 lg:px-12">
+            <div
+              className="mx-auto grid max-w-[1440px] overflow-hidden rounded-3xl sm:grid-cols-2"
+              style={{ backgroundColor: surfaceColor }}
+            >
+              <div className="flex flex-col items-start justify-center px-6 py-10 sm:px-10 sm:py-14 lg:px-14">
+                {homepageEditorial.eyebrow.trim() ? (
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: primaryColor }}>
+                    {homepageEditorial.eyebrow}
+                  </p>
+                ) : null}
+                {homepageEditorial.title.trim() ? (
+                  <h2 className="mt-3 max-w-md text-3xl font-medium leading-tight tracking-[-0.04em] text-[#292B25] sm:text-4xl">
+                    {homepageEditorial.title}
+                  </h2>
+                ) : null}
+                {homepageEditorial.description.trim() ? (
+                  <p className="mt-4 max-w-md text-sm leading-7 text-[#77776D]">
+                    {homepageEditorial.description}
+                  </p>
+                ) : null}
+                {homepageEditorial.buttonText.trim() ? (
+                  <Link
+                    href={resolveStorefrontHref(homepageEditorial.buttonUrl, shopHref, store.slug)}
+                    className="mt-6 inline-flex items-center gap-2 rounded-full px-6 py-3 text-xs font-semibold text-white"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    {homepageEditorial.buttonText}
+                    <ArrowRight size={15} />
+                  </Link>
+                ) : null}
+              </div>
+              <div className="grid grid-cols-2 gap-2 p-3 sm:p-4">
+                {[
+                  { url: homepageEditorial.image1Url, alt: homepageEditorial.image1Alt, link: homepageEditorial.image1Link },
+                  { url: homepageEditorial.image2Url, alt: homepageEditorial.image2Alt, link: homepageEditorial.image2Link },
+                  { url: homepageEditorial.image3Url, alt: homepageEditorial.image3Alt, link: homepageEditorial.image3Link },
+                  { url: homepageEditorial.image4Url, alt: homepageEditorial.image4Alt, link: homepageEditorial.image4Link },
+                ].map((item, index) => {
+                  const image = (
+                    <div className="aspect-square overflow-hidden rounded-2xl bg-white">
+                      <StoreImage
+                        src={imageUrl(item.url)}
+                        alt={item.alt?.trim() || `${store.displayName} collection image ${index + 1}`}
+                        className="h-full w-full object-contain p-4 transition duration-500 hover:scale-105 sm:p-6"
+                      />
+                    </div>
+                  );
+
+                  return item.link?.trim() ? (
+                    <Link
+                      key={index}
+                      href={resolveStorefrontHref(item.link, shopHref, store.slug)}
+                      className="group block overflow-hidden rounded-2xl"
+                    >
+                      {image}
+                    </Link>
+                  ) : (
+                    <div key={index}>{image}</div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        )}
+
+      {/* About */}
+
+      <section id="about" className="px-4 py-10 sm:px-7 sm:py-14 lg:px-12">
+
+        <div className="mx-auto max-w-3xl text-center">
+
+          <p
+
+            className="text-[10px] font-semibold uppercase tracking-[0.2em]"
+
+            style={{ color: primaryColor }}
+
+          >
+
+            Welcome to {store.displayName}
+
+          </p>
+
+          <h2 className="mt-3 text-2xl font-medium tracking-[-0.04em] text-[#292B25] sm:text-3xl">
+
+            A little more joy in your everyday kitchen.
+
+          </h2>
+
+          <p className="mt-4 text-sm leading-7 text-[#77776D]">
+
+            {store.aboutText || store.description}
+
+          </p>
+
+          <Link
+
+            href="/shop"
+
+            className="mt-6 inline-flex items-center gap-2 text-xs font-semibold"
+
+            style={{ color: primaryColor }}
+
+          >
+
+            Get to know our collection
+
+            <ArrowRight size={15} />
+
+          </Link>
+
+        </div>
+
+      </section>
+
+      {/* Footer */}
+
+      <footer
+
+        id="contact"
+
+        className="mt-6 text-white"
+
+        style={{ backgroundColor: store.secondaryColor }}
+
+      >
+
+        <div className="mx-auto grid max-w-[1440px] gap-10 px-5 py-12 sm:grid-cols-2 sm:px-8 lg:grid-cols-4 lg:px-12 lg:py-16">
+
+          <div>
+
+            <Link href="/" className="inline-flex items-center gap-3">
+
+              {store.logoUrl ? (
+
+                <StoreImage
+
+                  src={imageUrl(store.logoUrl)}
+
+                  alt={`${store.displayName} logo`}
+
+                  className="h-10 w-10 shrink-0 rounded-full border border-white/15 bg-white object-contain p-1"
+
+                />
+
+              ) : (
+
+                <span
+
+                  className="grid size-10 place-items-center rounded-full text-sm font-semibold text-white"
+
+                  style={{ backgroundColor: primaryColor }}
+
+                >
+
+                  {store.displayName.charAt(0).toUpperCase()}
+
+                </span>
+
+              )}
+
+              <span className="text-sm font-semibold tracking-[0.12em]">
+
+                {store.displayName.toUpperCase()}
+
+              </span>
+
+            </Link>
+
+            <p className="mt-4 max-w-xs text-xs leading-6 text-white/55">
+
+              {store.tagline}
+
+            </p>
+
+          </div>
+
+          <div>
+
+            <h3 className="text-xs font-semibold uppercase tracking-[0.15em]">
+
+              Explore
+
+            </h3>
+
+            <div className="mt-4 space-y-3 text-xs text-white/60">
+
+              <Link href="/shop" className="block hover:text-white">
+
+                Shop all products
+
+              </Link>
+
+              <Link href="/wishlist" className="block hover:text-white">
+
+                Wishlist
+
+              </Link>
+
+              <Link href="/cart" className="block hover:text-white">
+
+                Shopping cart
+
+              </Link>
+
+              <Link href="/account" className="block hover:text-white">
+
+                My account
+
+              </Link>
+
+            </div>
+
+          </div>
+
+          <div>
+
+            <h3 className="text-xs font-semibold uppercase tracking-[0.15em]">
+
+              Customer care
+
+            </h3>
+
+            <div className="mt-4 space-y-3 text-xs text-white/60">
+
+              <Link href="/track-order" className="block hover:text-white">
+
+                Track your order
+
+              </Link>
+
+              <Link href="/shipping" className="block hover:text-white">
+
+                Shipping information
+
+              </Link>
+
+              <Link href="/returns" className="block hover:text-white">
+
+                Returns & refunds
+
+              </Link>
+
+              <Link href="/faq" className="block hover:text-white">
+
+                Frequently asked questions
+
+              </Link>
+
+            </div>
+
+          </div>
+
+          <div>
+
+            <h3 className="text-xs font-semibold uppercase tracking-[0.15em]">
+
+              Contact us
+
+            </h3>
+
+            <div className="mt-4 space-y-3 text-xs text-white/60">
+
+              {store.phone && (
+
+                <p className="flex items-center gap-2">
+
+                  <Headphones size={14} />
+
+                  {store.phone}
+
+                </p>
+
+              )}
+
+              {store.email && (
+
+                <a
+
+                  href={`mailto:${store.email}`}
+
+                  className="flex items-center gap-2 hover:text-white"
+
+                >
+
+                  <Mail size={14} />
+
+                  {store.email}
+
+                </a>
+
+              )}
+
+              {whatsappHref && (
+
+                <a
+
+                  href={whatsappHref}
+
+                  target="_blank"
+
+                  rel="noreferrer"
+
+                  className="flex items-center gap-2 hover:text-white"
+
+                >
+
+                  <Headphones size={14} />
+
+                  Chat on WhatsApp
+
+                </a>
+
+              )}
+
+              <p className="flex items-center gap-2">
+
+                <Clock3 size={14} />
+
+                Online shopping, anytime
+
+              </p>
+
+              {categories.length > 0 && (
+
+                <div className="flex flex-wrap gap-x-3 gap-y-2 pt-2">
+
+                  {categories.slice(0, 5).map((category) => (
+
+                    <Link
+
+                      key={category.id}
+
+                      href={categoryLink(category.slug)}
+
+                      className="hover:text-white"
+
+                    >
+
+                      {category.name}
+
+                    </Link>
+
+                  ))}
+
+                </div>
+
+              )}
+
+            </div>
+
+          </div>
+
+        </div>
+
+        <div className="border-t border-white/10">
+
+          <div className="mx-auto flex max-w-[1440px] flex-col gap-2 px-5 py-5 text-[10px] text-white/40 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
+
+            <p>
+
+              © {new Date().getFullYear()} {store.displayName}. All rights
+
+              reserved.
+
+            </p>
+
+            <p>
+
+              Prices displayed in {store.currency}. Secure shopping.
+
+            </p>
+
+          </div>
+
+        </div>
+
+      </footer>
+
+    </main>
+
+  );
+
+}

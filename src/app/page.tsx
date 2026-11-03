@@ -151,6 +151,28 @@ export default async function HomePage() {
           offerPercent: true,
         },
       },
+      homepageEditorial: {
+        select: {
+          isEnabled: true,
+          eyebrow: true,
+          title: true,
+          description: true,
+          buttonText: true,
+          buttonUrl: true,
+          image1Url: true,
+          image1Alt: true,
+          image1Link: true,
+          image2Url: true,
+          image2Alt: true,
+          image2Link: true,
+          image3Url: true,
+          image3Alt: true,
+          image3Link: true,
+          image4Url: true,
+          image4Alt: true,
+          image4Link: true,
+        },
+      },
     },
   });
 
@@ -318,7 +340,7 @@ export default async function HomePage() {
       },
     },
     orderBy: { createdAt: "desc" },
-    take: 8,
+    take: 60,
   });
 
   const newArrivalProducts = rawNewArrivalProducts.map((product) => ({
@@ -589,6 +611,30 @@ const flashSaleProducts = Array.from(
       flashSaleProducts={flashSaleProducts}
       newArrivalProducts={newArrivalProducts}
       heroSlides={store.heroSlides}
+      homepageEditorial={
+        store.homepageEditorial
+          ? {
+              isEnabled: store.homepageEditorial.isEnabled,
+              eyebrow: store.homepageEditorial.eyebrow,
+              title: store.homepageEditorial.title,
+              description: store.homepageEditorial.description,
+              buttonText: store.homepageEditorial.buttonText,
+              buttonUrl: store.homepageEditorial.buttonUrl,
+              image1Url: store.homepageEditorial.image1Url,
+              image1Alt: store.homepageEditorial.image1Alt,
+              image1Link: store.homepageEditorial.image1Link,
+              image2Url: store.homepageEditorial.image2Url,
+              image2Alt: store.homepageEditorial.image2Alt,
+              image2Link: store.homepageEditorial.image2Link,
+              image3Url: store.homepageEditorial.image3Url,
+              image3Alt: store.homepageEditorial.image3Alt,
+              image3Link: store.homepageEditorial.image3Link,
+              image4Url: store.homepageEditorial.image4Url,
+              image4Alt: store.homepageEditorial.image4Alt,
+              image4Link: store.homepageEditorial.image4Link,
+            }
+          : null
+      }
       shopHref="/shop"
     />
   );

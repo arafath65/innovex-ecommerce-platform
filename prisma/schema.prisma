@@ -105,6 +105,7 @@ model store {
   heroSlides        hero_slide[]
   auditLogs         audit_log[]
   domains           store_domain[]
+  homepageEditorial store_homepage_editorial?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -252,6 +253,39 @@ model store_theme {
   store store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@index([storeId])
+}
+
+
+model store_homepage_editorial {
+  id          Int     @id @default(autoincrement())
+  storeId     Int     @unique
+  isEnabled   Boolean @default(false)
+
+  eyebrow     String  @default("") @db.VarChar(120)
+  title       String  @default("") @db.VarChar(240)
+  description String  @default("") @db.VarChar(600)
+  buttonText  String  @default("Explore the collection") @db.VarChar(100)
+  buttonUrl   String  @default("/shop") @db.VarChar(500)
+
+  image1Url  String? @db.VarChar(1000)
+  image1Alt  String? @db.VarChar(180)
+  image1Link String? @db.VarChar(500)
+  image2Url  String? @db.VarChar(1000)
+  image2Alt  String? @db.VarChar(180)
+  image2Link String? @db.VarChar(500)
+  image3Url  String? @db.VarChar(1000)
+  image3Alt  String? @db.VarChar(180)
+  image3Link String? @db.VarChar(500)
+  image4Url  String? @db.VarChar(1000)
+  image4Alt  String? @db.VarChar(180)
+  image4Link String? @db.VarChar(500)
+
+  store store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, isEnabled])
 }
 
 model hero_slide {
