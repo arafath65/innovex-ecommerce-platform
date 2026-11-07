@@ -7,7 +7,8 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "seed:local-domains": "tsx scripts/seed-local-domains.ts"
+    "seed:local-domains": "tsx scripts/seed-local-domains.ts",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
