@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+﻿import { randomUUID } from "node:crypto";
 import {
   mkdir,
   unlink,
@@ -277,7 +277,7 @@ export async function POST(
     }
 
     const relativeDirectory =
-      `stores/${session.storeId}/variants/${variantId}`;
+      `stores/${auth.storeId}/variants/${variantId}`;
 
     const absoluteDirectory = getMediaDirectory(relativeDirectory);
 
