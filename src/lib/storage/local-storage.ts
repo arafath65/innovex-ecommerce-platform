@@ -1,4 +1,4 @@
-import "server-only";
+﻿import "server-only";
 
 import { mkdir, unlink } from "node:fs/promises";
 import path from "node:path";
@@ -9,10 +9,10 @@ import path from "node:path";
  */
 export function getMediaRoot(): string {
   const configuredRoot = process.env.MEDIA_STORAGE_ROOT?.trim();
-  const mediaRoot = path.resolve(
+  const mediaRoot = path.resolve(/*turbopackIgnore: true*/
     configuredRoot || path.join(process.cwd(), "..", "innovex-media"),
   );
-  const appRoot = path.resolve(process.cwd());
+  const appRoot = path.resolve(/*turbopackIgnore: true*/ process.cwd());
   const filesystemRoot = path.parse(mediaRoot).root;
 
   if (
@@ -152,3 +152,4 @@ export function getStoredMediaAbsolutePath(url: string): string | null {
 
   return null;
 }
+
