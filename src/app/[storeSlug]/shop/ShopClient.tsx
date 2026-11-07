@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { useRef } from "react";
+import AddToCartButton from "@/components/storefront/AddToCartButton";
 import type { CSSProperties, FormEvent } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -771,7 +772,7 @@ export default function ShopClient({
               <h2 className="text-3xl font-black tracking-[-0.05em] sm:text-4xl">
                 {selectedCategoryName ??
                   (search
-                    ? `Results for “${search}”`
+                    ? `Results for â€œ${search}â€`
                     : "Shop all")}
               </h2>
 
@@ -818,7 +819,7 @@ export default function ShopClient({
                 return (
                   <article
                     key={product.id}
-                    className="shop-card group min-w-0"
+                    className="shop-card group relative min-w-0"
                   >
                     <Link
                       href={productHref(
@@ -924,18 +925,29 @@ export default function ShopClient({
                       </div>
                     </Link>
 
-                    <Link
-                      href={productHref(
-                        store.slug,
-                        product.slug,
-                      )}
-                      className="mt-4 flex items-center justify-center gap-2 rounded-full bg-[#111111] px-4 py-3 text-[9px] font-black uppercase tracking-[0.13em] text-white transition hover:bg-[var(--store-primary)]"
-                    >
-                      View product
-                      <ArrowUpRight
-                        size={12}
+                    <div className="mt-4 flex flex-col gap-2">
+                      <AddToCartButton
+                        storeSlug={store.slug}
+                        productId={product.id}
+                        name={product.name}
+                        slug={product.slug}
+                        price={product.price}
+                        image={image.url}
+                        currency={store.currency}
+                        available={true}
                       />
-                    </Link>
+
+                      <Link
+                        href={productHref(
+                          store.slug,
+                          product.slug,
+                        )}
+                        className="flex items-center justify-center gap-2 rounded-full border border-black/10 bg-white px-4 py-3 text-[9px] font-black uppercase tracking-[0.13em] text-[#111111] transition hover:border-[var(--store-primary)]"
+                      >
+                        View product
+                        <ArrowUpRight size={12} />
+                      </Link>
+                    </div>
                   </article>
                 );
               },
@@ -1033,3 +1045,5 @@ export default function ShopClient({
     </main>
   );
 }
+
+

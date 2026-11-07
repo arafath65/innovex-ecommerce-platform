@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
-import Image from "next/image";
+
+import { useStoreCart } from "@/lib/useStoreCart";import Image from "next/image";
 
 import Link from "next/link";
 
@@ -249,6 +250,7 @@ export default function HomeHeaderHero({
   );
 
   const [searchQuery, setSearchQuery] = useState("");
+  const { itemCount } = useStoreCart(store.slug);
   const [searchResults, setSearchResults] = useState<HeaderSearchProduct[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -778,7 +780,7 @@ export default function HomeHeaderHero({
 
     </div>
 
-    {/* Database hotline — displayed on desktop */}
+    {/* Database hotline â€” displayed on desktop */}
 
     {store.phone?.trim() ? (
 
@@ -1076,46 +1078,20 @@ export default function HomeHeaderHero({
   <span>Account</span>
 
 </Link>
-
-            <Link
-
-  href="/wishlist"
-
-  aria-label="Wishlist"
-
-  title="Wishlist"
-
-  className="group grid size-10 place-items-center rounded-full border border-black/10 bg-white text-[#292B25] transition-all duration-200 hover:border-[#d71920]/35 hover:text-[#d71920] hover:shadow-sm active:scale-95"
-
+<Link
+  href={`/cart?store=${encodeURIComponent(store.slug)}`}
+  aria-label={`Shopping cart${itemCount > 0 ? `, ${itemCount} items` : ""}`}
+  title="Shopping cart"
+  className="relative grid size-10 place-items-center rounded-full text-white transition-opacity hover:opacity-80"
+  style={{ backgroundColor: store.primaryColor }}
 >
-
-  <Heart
-
-    size={20}
-
-    strokeWidth={1.7}
-
-    className="transition-transform duration-200 group-hover:scale-110"
-
-  />
-
+  <ShoppingBag size={18} strokeWidth={1.7} />
+  {itemCount > 0 && (
+    <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-[#d71920] px-1 text-[10px] font-bold leading-none text-white">
+      {itemCount > 99 ? "99+" : itemCount}
+    </span>
+  )}
 </Link>
-
-            <Link
-
-              href="/cart"
-
-              aria-label="Shopping cart"
-
-              className="grid size-10 place-items-center rounded-full text-white transition-opacity hover:opacity-80"
-
-              style={{ backgroundColor: store.primaryColor }}
-
-            >
-
-              <ShoppingBag size={18} strokeWidth={1.7} />
-
-            </Link>
 
           </div>
 
@@ -1197,7 +1173,7 @@ export default function HomeHeaderHero({
           {shopAllMenuOpen && (
             <div
               id="shop-all-mega-menu"
-              className="absolute left-2 top-full z-50 mt-1 w-[min(900px,calc(100vw-16px))] max-h-[58vh] overflow-hidden rounded-lg border border-white/10 bg-[#171717] shadow-[0_18px_38px_rgba(0,0,0,0.32)] sm:left-4"
+              className="absolute left-2 top-full z-50 mt-1 w-[min(900px,calc(100vw-16px))] h-[min(72vh,680px)] overflow-hidden rounded-lg border border-white/10 bg-[#171717] shadow-[0_18px_38px_rgba(0,0,0,0.32)] sm:left-4"
               onMouseEnter={() => setShopAllMenuOpen(true)}
             >
               <div className="grid grid-cols-[minmax(150px,30%)_minmax(0,1fr)] gap-4 p-4 sm:gap-5 sm:p-5">
@@ -1265,7 +1241,7 @@ export default function HomeHeaderHero({
                   </div>
 
                   {menuProductsLoading ? (
-                    <div className="grid grid-cols-2 gap-2.5">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       {Array.from({ length: 9 }).map((_, index) => (
                         <div key={index} className="animate-pulse">
                           <div className="aspect-square rounded-lg bg-white/10" />
@@ -1275,8 +1251,8 @@ export default function HomeHeaderHero({
                       ))}
                     </div>
                   ) : menuProducts.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-2.5">
-                      {menuProducts.slice(0, 9).map((product) => {
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {menuProducts.slice(0, 16).map((product) => {
                         const productImageUrl = normalizeImageUrl(product.images[0]?.imageUrl);
                         return (
                           <Link
@@ -1285,7 +1261,7 @@ export default function HomeHeaderHero({
                             onClick={() => setShopAllMenuOpen(false)}
                             className="group min-w-0 rounded-md border border-white/[0.07] bg-white/[0.035] p-1 transition-colors hover:bg-white/[0.08]"
                           >
-                            <div className="relative aspect-square w-full overflow-hidden rounded bg-white">
+                            <div className="relative aspect-square w-full max-h-[105px] overflow-hidden rounded bg-white">
                               {productImageUrl ? (
                                 <Image
                                   src={productImageUrl}
@@ -1301,7 +1277,7 @@ export default function HomeHeaderHero({
                                 </div>
                               )}
                             </div>
-                            <p className="mt-1 line-clamp-2 min-h-6 text-[9px] font-medium leading-3 text-white/85">
+                            <p className="mt-1 line-clamp-2 min-h-6 text-[8px] font-medium leading-3 text-white/85">
                               {product.name}
                             </p>
                             <p className="mt-0 text-[9px] font-semibold leading-3 text-white">
@@ -1796,3 +1772,7 @@ export default function HomeHeaderHero({
   );
 
 }
+
+
+
+

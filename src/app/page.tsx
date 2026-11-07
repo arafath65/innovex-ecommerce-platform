@@ -113,6 +113,7 @@ export default async function HomePage() {
           facebookUrl: true,
           instagramUrl: true,
           tiktokUrl: true,
+          youtubeUrl: true,
           aboutText: true,
         },
       },
@@ -591,6 +592,7 @@ const flashSaleProducts = Array.from(
         facebookUrl: store.profile?.facebookUrl ?? null,
         instagramUrl: store.profile?.instagramUrl ?? null,
         tiktokUrl: store.profile?.tiktokUrl ?? null,
+        youtubeUrl: store.profile?.youtubeUrl ?? null,
         currency: store.settings?.currency || store.currency || "LKR",
         primaryColor:
           store.theme?.primaryColor ||
@@ -639,3 +641,4 @@ const flashSaleProducts = Array.from(
     />
   );
 }
+

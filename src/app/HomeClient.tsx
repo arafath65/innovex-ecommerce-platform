@@ -1,9 +1,14 @@
+﻿"use client";
 import HomeHeaderHero from "./HomeHeaderHero";
 import Image from "next/image";
 import Link from "next/link";
+import { Heart } from "lucide-react";
+import { useWishlist } from "@/lib/useWishlist";
+import AddToCartButton from "@/components/storefront/AddToCartButton";
 import AnimatedBenefitCards from "./AnimatedBenefitCards";
 import CategoryMarquee from "./CategoryMarquee";
 import FlashSaleCarousel from "./FlashSaleCarousel";
+import { FaFacebookF, FaInstagram, FaTiktok, FaYoutube } from "react-icons/fa";
 
 import {
   ArrowRight,
@@ -107,6 +112,7 @@ type StoreInfo = {
   facebookUrl: string | null;
 instagramUrl: string | null;
 tiktokUrl: string | null;
+  youtubeUrl: string | null;
 
   name: string;
 
@@ -332,156 +338,107 @@ function StoreImage({
   );
 }
 
+
 function ProductCard({
-
   product,
-
   currency,
-
   primaryColor,
-
   surfaceColor,
-
   mutedColor,
-
+  storeSlug,
 }: {
-
   product: Product;
-
   currency: string;
-
   primaryColor: string;
-
   surfaceColor: string;
-
   mutedColor: string;
-
+  storeSlug: string;
 }) {
-
   const image = productImage(product);
-
   const discount = discountPercent(product);
 
   return (
-
     <article className="group min-w-0 overflow-hidden rounded-xl border border-black/[0.055] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.025)] transition-shadow hover:shadow-sm">
-
-      <Link
-
-        href={`/product/${encodeURIComponent(product.slug)}`}
-
-        className="block"
-
+      <div
+        className="relative aspect-[1.42/1] overflow-hidden rounded-xl border border-black/[0.055] bg-white"
+        style={{ backgroundColor: surfaceColor }}
       >
-
-        <div
-
-          className="relative aspect-[1.42/1] overflow-hidden rounded-xl border border-black/[0.055] bg-white"
-
-          style={{ backgroundColor: surfaceColor }}
-
+        <Link
+          href={`/product/${encodeURIComponent(product.slug)}`}
+          className="absolute inset-0 z-0 block"
+          aria-label={`View ${product.name}`}
         >
-
           <StoreImage
-
             src={image.src}
-
             alt={image.alt}
-
             className="h-full w-full object-contain p-1.5 transition duration-500 group-hover:scale-[1.045] sm:p-2"
-
           />
+        </Link>
 
-          <span
-            className="absolute left-3 top-3 rounded-full px-3 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-white shadow-sm"
-            style={{ backgroundColor: primaryColor }}
-          >
-            New
+        <span
+          className="pointer-events-none absolute left-3 top-3 z-10 rounded-full px-3 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-white shadow-sm"
+          style={{ backgroundColor: primaryColor }}
+        >
+          New
+        </span>
+
+        {discount > 0 && (
+          <span className="pointer-events-none absolute right-3 top-3 z-10 rounded-full bg-white/95 px-2.5 py-1 text-[9px] font-semibold text-[#292B25] shadow-sm">
+            Save {discount}%
           </span>
+        )}
 
-          {discount > 0 && (
-            <span className="absolute right-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[9px] font-semibold text-[#292B25] shadow-sm">
-              Save {discount}%
-            </span>
-          )}
-
-          {!product.isAvailable && (
-
-            <span className="absolute bottom-3 left-3 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-semibold text-black/60 shadow-sm">
-
-              Currently unavailable
-
-            </span>
-
-          )}
-
-          <span
-
-            className="absolute bottom-3 right-3 grid size-10 translate-y-2 place-items-center rounded-full bg-white text-black opacity-0 shadow-md transition duration-300 group-hover:translate-y-0 group-hover:opacity-100"
-
-            aria-hidden="true"
-
-          >
-
-            <ArrowUpRight size={17} />
-
+        {!product.isAvailable && (
+          <span className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-semibold text-black/60 shadow-sm">
+            Currently unavailable
           </span>
+        )}
 
+        <div className="absolute bottom-3 right-3 z-20 opacity-100 transition-opacity duration-200">
+          <AddToCartButton
+            storeSlug={storeSlug}
+            productId={product.id}
+            name={product.name}
+            slug={product.slug}
+            price={product.price}
+            image={image.src}
+            currency={currency}
+            available={product.isAvailable}
+            compact
+          />
         </div>
-
-      </Link>
+      </div>
 
       <div className="px-2.5 pb-3 pt-2">
-
         <p
-
           className="text-[10px] font-medium uppercase tracking-[0.14em]"
-
           style={{ color: mutedColor }}
-
         >
-
           {product.category?.name ?? "Kitchen essentials"}
-
         </p>
 
         <Link href={`/product/${encodeURIComponent(product.slug)}`}>
-
           <h3 className="mt-1.5 line-clamp-2 min-h-10 text-sm font-medium leading-5 text-[#292B25] transition group-hover:text-[#65734D]">
-
             {product.name}
-
           </h3>
-
         </Link>
 
         <div className="mt-2 flex flex-wrap items-baseline gap-2">
-
           <span className="text-sm font-semibold text-[#292B25]">
-
             {formatPrice(product.price, currency)}
-
           </span>
 
           {discount > 0 && product.compareAtPrice && (
-
             <span className="text-xs text-black/35 line-through">
-
               {formatPrice(product.compareAtPrice, currency)}
-
             </span>
-
           )}
-
         </div>
-
       </div>
-
     </article>
-
   );
-
 }
+
 
 export default function HomeClient({
   store,
@@ -705,6 +662,7 @@ const mutedColor = store.mutedColor;
                   primaryColor={primaryColor}
                   surfaceColor={surfaceColor}
                   mutedColor={mutedColor}
+                  storeSlug={store.slug}
                 />
               ))}
             </div>
@@ -731,270 +689,188 @@ const mutedColor = store.mutedColor;
 
       {/* Footer */}
 
-      <footer
+      <footer className="mt-16 border-t border-white/[0.08] bg-[#0b0b0b] text-white">
+  <div className="mx-auto grid max-w-[1440px] gap-12 px-5 py-14 sm:grid-cols-2 sm:px-8 lg:grid-cols-[1.35fr_1fr_1fr_1.2fr] lg:gap-16 lg:px-12 lg:py-20">
+    <div>
+      <Link href="/" className="inline-flex items-center gap-3">
+        {store.logoUrl ? (
+          <StoreImage
+            src={imageUrl(store.logoUrl)}
+            alt={`${store.displayName} logo`}
+            className="h-12 w-12 shrink-0 rounded-full border border-white/10 bg-white object-contain p-1"
+          />
+        ) : (
+          <span
+            className="grid size-12 place-items-center rounded-full text-base font-semibold text-white"
+            style={{ backgroundColor: primaryColor }}
+          >
+            {store.displayName.charAt(0).toUpperCase()}
+          </span>
+        )}
+        <span className="text-sm font-bold tracking-[0.14em]">
+          {store.displayName.toUpperCase()}
+        </span>
+      </Link>
 
-        id="contact"
+      <p className="mt-5 max-w-xs text-sm leading-7 text-white/50">
+        {store.tagline}
+      </p>
 
-        className="mt-6 text-white"
+      <div className="mt-6 flex items-center gap-3">
+        {[
+          { label: "Facebook", url: store.facebookUrl, Icon: FaFacebookF },
+          { label: "Instagram", url: store.instagramUrl, Icon: FaInstagram },
+          { label: "TikTok", url: store.tiktokUrl, Icon: FaTiktok },
+          { label: "YouTube", url: store.youtubeUrl, Icon: FaYoutube },
+        ].filter((social) => social.url?.trim()).map(({ label, url, Icon }) => (
+          <a
+            key={label}
+            href={url!}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={label}
+            title={label}
+            className="grid size-10 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-white/65 transition-all hover:-translate-y-1 hover:border-white/30 hover:bg-white/10 hover:text-white"
+          >
+            <Icon size={15} />
+          </a>
+        ))}
+      </div>
 
-        style={{ backgroundColor: store.secondaryColor }}
+      <div className="mt-6 h-px w-12 bg-[#ff4148]" />
+    </div>
 
-      >
+    <div>
+      <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-white">
+        Explore
+      </h3>
+      <div className="mt-5 space-y-3.5 text-sm text-white/55">
+        <Link href="/shop" className="block transition-colors hover:translate-x-1 hover:text-white">
+          Shop all products
+        </Link>
+        <Link href="/wishlist" className="block transition-colors hover:translate-x-1 hover:text-white">
+          Wishlist
+        </Link>
+        <Link href="/cart" className="block transition-colors hover:translate-x-1 hover:text-white">
+          Shopping cart
+        </Link>
+        <Link href="/account" className="block transition-colors hover:translate-x-1 hover:text-white">
+          My account
+        </Link>
+      </div>
+    </div>
 
-        <div className="mx-auto grid max-w-[1440px] gap-10 px-5 py-12 sm:grid-cols-2 sm:px-8 lg:grid-cols-4 lg:px-12 lg:py-16">
+    <div>
+      <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-white">
+        Customer care
+      </h3>
+      <div className="mt-5 space-y-3.5 text-sm text-white/55">
+        <Link href="/track-order" className="block transition-colors hover:translate-x-1 hover:text-white">
+          Track your order
+        </Link>
+        <Link href="/shipping" className="block transition-colors hover:translate-x-1 hover:text-white">
+          Shipping information
+        </Link>
+        <Link href="/returns" className="block transition-colors hover:translate-x-1 hover:text-white">
+          Returns &amp; refunds
+        </Link>
+        <Link href="/faq" className="block transition-colors hover:translate-x-1 hover:text-white">
+          Frequently asked questions
+        </Link>
+      </div>
+    </div>
 
-          <div>
+    <div>
+      <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-white">
+        Contact us
+      </h3>
 
-            <Link href="/" className="inline-flex items-center gap-3">
+      <div className="mt-5 space-y-4 text-sm text-white/55">
+        {store.phone && (
+          <p className="flex items-center gap-3">
+            <span className="grid size-8 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04]">
+              <Headphones size={14} />
+            </span>
+            {store.phone}
+          </p>
+        )}
 
-              {store.logoUrl ? (
+        {store.email && (
+          <a
+            href={`mailto:${store.email}`}
+            className="flex items-center gap-3 transition-colors hover:text-white"
+          >
+            <span className="grid size-8 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04]">
+              <Mail size={14} />
+            </span>
+            <span className="break-all">{store.email}</span>
+          </a>
+        )}
 
-                <StoreImage
+        {whatsappHref && (
+          <a
+            href={whatsappHref}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-3 transition-colors hover:text-white"
+          >
+            <span className="grid size-8 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04]">
+              <Headphones size={14} />
+            </span>
+            Chat on WhatsApp
+          </a>
+        )}
 
-                  src={imageUrl(store.logoUrl)}
+        <p className="flex items-center gap-3">
+          <span className="grid size-8 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04]">
+            <Clock3 size={14} />
+          </span>
+          Online shopping, anytime
+        </p>
+      </div>
 
-                  alt={`${store.displayName} logo`}
-
-                  className="h-10 w-10 shrink-0 rounded-full border border-white/15 bg-white object-contain p-1"
-
-                />
-
-              ) : (
-
-                <span
-
-                  className="grid size-10 place-items-center rounded-full text-sm font-semibold text-white"
-
-                  style={{ backgroundColor: primaryColor }}
-
-                >
-
-                  {store.displayName.charAt(0).toUpperCase()}
-
-                </span>
-
-              )}
-
-              <span className="text-sm font-semibold tracking-[0.12em]">
-
-                {store.displayName.toUpperCase()}
-
-              </span>
-
+      {categories.length > 0 && (
+        <div className="mt-6 flex flex-wrap gap-2">
+          {categories.slice(0, 5).map((category) => (
+            <Link
+              key={category.id}
+              href={categoryLink(category.slug)}
+              className="rounded-full border border-white/10 px-3 py-1.5 text-[11px] text-white/45 transition-colors hover:border-white/30 hover:text-white"
+            >
+              {category.name}
             </Link>
-
-            <p className="mt-4 max-w-xs text-xs leading-6 text-white/55">
-
-              {store.tagline}
-
-            </p>
-
-          </div>
-
-          <div>
-
-            <h3 className="text-xs font-semibold uppercase tracking-[0.15em]">
-
-              Explore
-
-            </h3>
-
-            <div className="mt-4 space-y-3 text-xs text-white/60">
-
-              <Link href="/shop" className="block hover:text-white">
-
-                Shop all products
-
-              </Link>
-
-              <Link href="/wishlist" className="block hover:text-white">
-
-                Wishlist
-
-              </Link>
-
-              <Link href="/cart" className="block hover:text-white">
-
-                Shopping cart
-
-              </Link>
-
-              <Link href="/account" className="block hover:text-white">
-
-                My account
-
-              </Link>
-
-            </div>
-
-          </div>
-
-          <div>
-
-            <h3 className="text-xs font-semibold uppercase tracking-[0.15em]">
-
-              Customer care
-
-            </h3>
-
-            <div className="mt-4 space-y-3 text-xs text-white/60">
-
-              <Link href="/track-order" className="block hover:text-white">
-
-                Track your order
-
-              </Link>
-
-              <Link href="/shipping" className="block hover:text-white">
-
-                Shipping information
-
-              </Link>
-
-              <Link href="/returns" className="block hover:text-white">
-
-                Returns & refunds
-
-              </Link>
-
-              <Link href="/faq" className="block hover:text-white">
-
-                Frequently asked questions
-
-              </Link>
-
-            </div>
-
-          </div>
-
-          <div>
-
-            <h3 className="text-xs font-semibold uppercase tracking-[0.15em]">
-
-              Contact us
-
-            </h3>
-
-            <div className="mt-4 space-y-3 text-xs text-white/60">
-
-              {store.phone && (
-
-                <p className="flex items-center gap-2">
-
-                  <Headphones size={14} />
-
-                  {store.phone}
-
-                </p>
-
-              )}
-
-              {store.email && (
-
-                <a
-
-                  href={`mailto:${store.email}`}
-
-                  className="flex items-center gap-2 hover:text-white"
-
-                >
-
-                  <Mail size={14} />
-
-                  {store.email}
-
-                </a>
-
-              )}
-
-              {whatsappHref && (
-
-                <a
-
-                  href={whatsappHref}
-
-                  target="_blank"
-
-                  rel="noreferrer"
-
-                  className="flex items-center gap-2 hover:text-white"
-
-                >
-
-                  <Headphones size={14} />
-
-                  Chat on WhatsApp
-
-                </a>
-
-              )}
-
-              <p className="flex items-center gap-2">
-
-                <Clock3 size={14} />
-
-                Online shopping, anytime
-
-              </p>
-
-              {categories.length > 0 && (
-
-                <div className="flex flex-wrap gap-x-3 gap-y-2 pt-2">
-
-                  {categories.slice(0, 5).map((category) => (
-
-                    <Link
-
-                      key={category.id}
-
-                      href={categoryLink(category.slug)}
-
-                      className="hover:text-white"
-
-                    >
-
-                      {category.name}
-
-                    </Link>
-
-                  ))}
-
-                </div>
-
-              )}
-
-            </div>
-
-          </div>
-
+          ))}
         </div>
+      )}
+    </div>
+  </div>
 
-        <div className="border-t border-white/10">
-
-          <div className="mx-auto flex max-w-[1440px] flex-col gap-2 px-5 py-5 text-[10px] text-white/40 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
-
-            <p>
-
-              © {new Date().getFullYear()} {store.displayName}. All rights
-
-              reserved.
-
-            </p>
-
-            <p>
-
-              Prices displayed in {store.currency}. Secure shopping.
-
-            </p>
-
-          </div>
-
-        </div>
-
-      </footer>
+  <div className="border-t border-white/[0.08]">
+    <div className="mx-auto flex max-w-[1440px] flex-col gap-3 px-5 py-5 text-[11px] text-white/35 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
+      <p>
+        Â© {new Date().getFullYear()} {store.displayName}. All rights reserved.
+      </p>
+      <p className="flex items-center gap-2">
+        Prices displayed in {store.currency}
+        <span className="text-white/15">|</span>
+        Secure shopping
+      </p>
+    </div>
+  </div>
+</footer>
 
     </main>
 
   );
 
 }
+
+
+
+
+
+
+
+
+
+
