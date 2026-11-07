@@ -1,27 +1,25 @@
 ﻿import "server-only";
 
-import { mkdir, unlink } from "node:fs/promises";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 /**
- * Files are stored outside the Next.js application directory.
- * Configure MEDIA_STORAGE_ROOT separately for each environment.
+ * Media files are stored inside the project directory by default.
+ * Configure MEDIA_STORAGE_ROOT separately for each environment if needed.
  */
 export function getMediaRoot(): string {
   const configuredRoot = process.env.MEDIA_STORAGE_ROOT?.trim();
-  const mediaRoot = path.resolve(/*turbopackIgnore: true*/
-    configuredRoot || path.join(process.cwd(), "..", "innovex-media"),
+
+  const mediaRoot = path.resolve(
+    configuredRoot || path.join(process.cwd(), "storage", "media"),
   );
-  const appRoot = path.resolve(/*turbopackIgnore: true*/ process.cwd());
+
+  const appRoot = path.resolve(process.cwd());
   const filesystemRoot = path.parse(mediaRoot).root;
 
-  if (
-    mediaRoot === appRoot ||
-    mediaRoot.startsWith(`${appRoot}${path.sep}`) ||
-    mediaRoot === filesystemRoot
-  ) {
+  if (mediaRoot === appRoot || mediaRoot === filesystemRoot) {
     throw new Error(
-      "MEDIA_STORAGE_ROOT must be a dedicated directory outside the application folder and cannot be a filesystem root.",
+      "MEDIA_STORAGE_ROOT must be a dedicated directory and cannot be the application folder or a filesystem root.",
     );
   }
 
@@ -82,8 +80,8 @@ export async function saveMediaFile(
   contents: Buffer,
 ): Promise<{ absolutePath: string; url: string }> {
   const absolutePath = getMediaFilePath(key);
+
   await mkdir(path.dirname(absolutePath), { recursive: true });
-  const { writeFile } = await import("node:fs/promises");
   await writeFile(absolutePath, contents, { flag: "wx" });
 
   return {
@@ -93,7 +91,7 @@ export async function saveMediaFile(
 }
 
 /**
- * Delete files created by the external media store and legacy files still
+ * Delete files created by the media store and legacy files still
  * located under public/. Legacy URLs are retained for existing records.
  */
 export async function deleteStoredMediaFile(url: string | null | undefined) {
@@ -111,10 +109,13 @@ export async function deleteStoredMediaFile(url: string | null | undefined) {
   ) {
     const publicRoot = path.resolve(process.cwd(), "public");
     const relative = value.slice(1).replace(/\\/g, "/");
+
     if (relative.split("/").some((part) => part === ".." || part === ".")) {
       return;
     }
+
     absolutePath = path.resolve(publicRoot, relative);
+
     if (!absolutePath.startsWith(`${publicRoot}${path.sep}`)) return;
   } else {
     return;
@@ -125,6 +126,7 @@ export async function deleteStoredMediaFile(url: string | null | undefined) {
       error && typeof error === "object" && "code" in error
         ? String(error.code)
         : "";
+
     if (code !== "ENOENT") throw error;
   });
 }
@@ -141,10 +143,13 @@ export function getStoredMediaAbsolutePath(url: string): string | null {
   ) {
     const publicRoot = path.resolve(process.cwd(), "public");
     const relative = url.slice(1).replace(/\\/g, "/");
+
     if (relative.split("/").some((part) => part === ".." || part === ".")) {
       return null;
     }
+
     const absolutePath = path.resolve(publicRoot, relative);
+
     return absolutePath.startsWith(`${publicRoot}${path.sep}`)
       ? absolutePath
       : null;
@@ -152,4 +157,3 @@ export function getStoredMediaAbsolutePath(url: string): string | null {
 
   return null;
 }
-

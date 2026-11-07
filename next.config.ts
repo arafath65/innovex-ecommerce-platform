@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+﻿import type { NextConfig } from "next";
 
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -27,6 +27,7 @@ const nextConfig: NextConfig = {
     "second-store.test",
   ],
 
+
   async headers() {
     return [
       {
@@ -38,3 +39,5 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
+
