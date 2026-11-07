@@ -11,10 +11,11 @@ export function getMediaRoot(): string {
   const configuredRoot = process.env.MEDIA_STORAGE_ROOT?.trim();
 
   const mediaRoot = path.resolve(
+    /* turbopackIgnore: true */
     configuredRoot || path.join(process.cwd(), "storage", "media"),
   );
 
-  const appRoot = path.resolve(process.cwd());
+  const appRoot = path.resolve(/* turbopackIgnore: true */ process.cwd());
   const filesystemRoot = path.parse(mediaRoot).root;
 
   if (mediaRoot === appRoot || mediaRoot === filesystemRoot) {
