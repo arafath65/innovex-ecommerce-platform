@@ -1,4 +1,4 @@
-
+﻿
 import "server-only";
 
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
@@ -34,3 +34,4 @@ export const prisma =
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
+
